@@ -13,7 +13,6 @@ condition="NULL"
 covariates="age_imputed,sex,Keras:predicted_celltype_probability"
 covariates_cell="Keras:predicted_celltype_probability"
 expression_pca="true"
-n_geno_pcs=5
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
 cis_window=1000000

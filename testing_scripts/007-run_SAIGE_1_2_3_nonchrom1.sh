@@ -25,6 +25,7 @@ expression_pca=True
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
 cis_window=1000000
+n_geno_pcs=5
 
 # Set up dir
 if [ -n "$condition_col" ]; then
@@ -37,35 +38,39 @@ fi
 gene_list=${catdir}/non_chr1_genes.txt
 gene=$(head $gene_list -n ${LSB_JOBINDEX} | tail -n 1)
 
-# Load the optimum number of PCs
-optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
-n_geno_pcs=$(<"$optim_npcs_file")
-
-# Execute SAIGE for this value of genotype PCs
-echo "Working for genotype PC number"
-echo $n_geno_pcs
-echo "Prepping the covariates"
-
+# Add genotype PCs to the covariates
 for ((i=1; i<=n_geno_pcs; i++)); do
-    covariates+=",PC$i"
+        covariates+=",PC$i"
 done
 
-# And expression PCs to the cell-level covariates
+# Define the number of expression PCs to use
 if [[ "$expression_pca" == "True" ]]; then
-    # Define file
-    knee_file=${catdir}/knee.txt
-    knee=$(<"$knee_file")
-    # Generate the 'PC' string up to the numeric value
-    covariates_cell="${covariates_cell},$(printf "xPC%d," $(seq "$knee") | sed 's/,$//')"
+    # Load the optimum number of PCs (expression)
+    optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
+    n_expr_pcs=$(<"$optim_npcs_file")
+else
+    n_expr_pcs=0
+fi
+
+# Execute SAIGE for this value of expression PCs
+echo "Working for expression PC number"
+echo $n_expr_pcs
+echo "Prepping the covariates"
+
+ # Generate the expression PC' string up to the numeric value
+if [ "${n_expr_pcs}" != 0 ]; then
+    covariates_cell_pc="${covariates_cell},$(printf "xPC%d," $(seq "$n_expr_pcs") | sed 's/,$//')"
+else
+    covariates_cell_pc="$covariates_cell"
 fi
 
 # Fix covariate issue (replacing ':' with '_') in both the covariates and covatiates_cell
 covariates="${covariates//:/_}"
-covariates_cell="${covariates_cell//:/_}"
+covariates_cell_pc="${covariates_cell_pc//:/_}"
 # Combine
-covariates_sample_cell=$(echo "$covariates,$covariates_cell" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+covariates_sample_cell=$(echo "$covariates,$covariates_cell_pc" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
 # Specify sample-level covariates
-covariates_sample=$(echo "$covariates" | tr ',' '\n' | sort | comm -23 - <(echo "$covariates_cell" | tr ',' '\n' | sort) | tr '\n' ',' | sed 's/,$//')
+covariates_sample=$(echo "$covariates" | tr ',' '\n' | sort | comm -23 - <(echo "$covariates_cell_pc" | tr ',' '\n' | sort) | tr '\n' ',' | sed 's/,$//')
 
 
 echo "Estimating the variance"
@@ -78,7 +83,7 @@ singularity exec -B /lustre -B /software $saige_eqtl step1_fitNULLGLMM_qtl.R \
     --sampleCovarColList=${covariates_sample}      \
     --sampleIDColinphenoFile=${genotype_id} \
     --traitType=count \
-    --outputPrefix=${catdir}/${gene}_npc${n_geno_pcs} \
+    --outputPrefix=${catdir}/${gene}_npc${n_expr_pcs} \
     --skipVarianceRatioEstimation=FALSE  \
     --isRemoveZerosinPheno=FALSE \
     --isCovariateOffset=FALSE  \
@@ -90,9 +95,9 @@ singularity exec -B /lustre -B /software $saige_eqtl step1_fitNULLGLMM_qtl.R \
 
 # Perform the analysis cis-only or genome-wide
 echo "Testing eQTLs"
-step1prefix=${catdir}/${gene}_npc${n_geno_pcs}
+step1prefix=${catdir}/${gene}_npc${n_expr_pcs}
 if [ "$cis_only" = true ]; then
-    step2prefix=${catdir}/${gene}__npc${n_geno_pcs}_cis
+    step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_cis
     # Find the coordinates/chromosome of the given gene
     gene_chr=$(awk -v search="$gene" '$1 == search {print $5}' "$annotation__file")
     gene_start=$(awk -v search="$gene" '$1 == search {print $2}' "$annotation__file")
@@ -131,7 +136,7 @@ if [ "$cis_only" = true ]; then
     rm ${step1prefix}*
     echo "Finished analysis, removed intermediate files"
 else
-    step2prefix=${catdir}/${gene}__npc${n_geno_pcs}_gw.txt
+    step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_gw.txt
     singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step2_tests_qtl.R \
         --bedFile=${general_file_dir}/genotypes/plink_genotypes.bed      \
         --bimFile=${general_file_dir}/genotypes/plink_genotypes.bim      \

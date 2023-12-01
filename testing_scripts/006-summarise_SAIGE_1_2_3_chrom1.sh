@@ -28,11 +28,11 @@ else
 fi
 
 # Concat all of the ACAT results from chromosome 1 within each nPC
-for n_geno_pcs in 5 10 15 20; do
-        echo $n_geno_pcs
-        for f in ${catdir}/*_npc${n_geno_pcs}_cis_ACAT.txt
+for n_expr_pcs in 5 10 15 20 $knee; do
+        echo $n_expr_pcs
+        for f in ${catdir}/*_npc${n_expr_pcs}_cis_ACAT.txt
         do
-                tail -n +2 $f >> ${catdir}/chr1_nPC_${n_geno_pcs}_ACAT_all.txt
+                tail -n +2 $f >> ${catdir}/chr1_nPC_${n_expr_pcs}_ACAT_all.txt
         done
 done
 
@@ -46,12 +46,12 @@ optim_npcs=$(<"$optim_npcs_file")
 
 # Remove files for which the non-optimimum nPC is used
 # Iterate over the desired values
-for n_geno_pcs in 5 10 15 20; do
-        echo $n_geno_pcs
-        if [ "$n_geno_pcs" -ne "$optim_npcs" ]; then
+for n_expr_pcs in 5 10 15 20 $knee; do
+        echo $n_expr_pcs
+        if [ "$n_expr_pcs" -ne "$optim_npcs" ]; then
                 # Remove files that don't match the current value of n_optim_pcs
-                rm ${catdir}/*npc${n_geno_pcs}*
-                rm ${catdir}/*nPC_${n_geno_pcs}*
+                rm ${catdir}/*npc${n_expr_pcs}*
+                rm ${catdir}/*nPC_${n_expr_pcs}*
         fi
 done
 

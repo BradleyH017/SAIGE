@@ -26,9 +26,9 @@ cis_window=1000000
 
 # Set up dir
 if [ -n "$condition_col" ]; then
-catdir=${general_file_dir}/${aggregate_on}/${category}/${condition_col}/${condition}
+    catdir=${general_file_dir}/${aggregate_on}/${category}/${condition_col}/${condition}
 else
-catdir=${general_file_dir}/${aggregate_on}/${category}
+    catdir=${general_file_dir}/${aggregate_on}/${category}
 fi
 
 # Load optimum PCs
@@ -37,19 +37,20 @@ n_geno_pcs=$(<"$optim_npcs_file")
 
 # Gather results for each chromosome (also compressing these)
 echo "Cleaning the output of the rest of the chromosomes"
-for chr_num in {1..22} X Y; do
-    echo $chr_num
-    # Gather all cis results
-    for f in ${catdir}/*npc${n_geno_pcs}_cis.txt
-        do
-        tail -n +2 $f >> ${catdir}/chr${chr_num}_nPC_${n_geno_pcs}.txt
-    done
-    # Gzip this per chromosome
+while read gene; do
+    echo $gene
+    gene_chr=$(awk -v search="$gene" '$1 == search {print $5}' "$annotation__file")
+    # Gather the cis results
+    tail -n +2 ${catdir}/${gene}__npc${n_geno_pcs}_cis.txt >> ${catdir}/chr${gene_chr}_nPC_${n_geno_pcs}.txt
+    # Gather the ACAT results
+    tail -n +2 ${catdir}/${gene}__npc${n_geno_pcs}_cis_ACAT.txt >> ${catdir}/chr${gene_chr}_nPC_${n_geno_pcs}_ACAT_all.txt
+    # remove the intermediate files
+    rm ${catdir}/${gene}*
+done <${catdir}/non_chr1_genes.txt
+
+# Gzip each chromosome
+for chr_num in {1..22}; do
     gzip ${catdir}/chr${chr_num}_nPC_${n_geno_pcs}.txt
-    # Gather all the ACAT results
-    for f in ${catdir}/*_npc${n_geno_pcs}_cis_ACAT.txt
-        do
-        tail -n +2 $f >> ${catdir}/chr${chr_num}_nPC_${n_geno_pbjobscs}_ACAT_all.txt
-    done
 done
+
 

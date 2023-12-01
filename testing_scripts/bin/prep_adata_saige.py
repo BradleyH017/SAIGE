@@ -216,7 +216,6 @@ def main():
     adata.obs.loc[adata.obs['sanger_sample_id'].isin(['OTARscRNA9294497', 'OTARscRNA9294498']), 'age_imputed'] = 56.5
     covs_use=covariates.split(',')
 
-
     # Define savedir
     if condition_col != "NULL":
         savedir=f"{general_file_dir}/{aggregate_on}/{level}/{condition_col}/{condition}"
@@ -285,9 +284,9 @@ def main():
         print('Knee: ', knee_point)
         # Save knee
         np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
-        # Append the PC matrix onto the count data
+        # Append the PC matrix onto the count data (up to 20)
         loadings = pd.DataFrame(temp.obsm['X_pca'])
-        loadings = loadings.iloc[:,0:knee_point]
+        loadings = loadings.iloc[:,0:20]
         loadings.index = temp.obs.index
         loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
         counts = counts.merge(loadings, left_index=True, right_index=True)

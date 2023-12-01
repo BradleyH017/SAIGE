@@ -14,7 +14,11 @@ opt = parse_args(OptionParser(option_list = option_list))
 catdir = opt$c
 
 # Load files and process
-nPCs = c("5","10","15","20")
+group_files=list.files(catdir)
+group_files=group_files[grep("ACAT_all", group_files)]
+nPCs = gsub("_ACAT_all.txt", "", group_files)
+nPCs = gsub("chr1_nPC_", "", nPCs)
+
 res = data.frame("nGenotype_PCs"=nPCs, "neGenes"="")
 cols = c("gene", "ACAT_p", "top_MarkerID", "top_pval")
 for(f in nPCs){
