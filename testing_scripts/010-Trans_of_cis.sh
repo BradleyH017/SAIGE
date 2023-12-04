@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### Performing genome-wide analysis of trans-effects from cis-variants using SAIGE
+# bsub -o logs/saige_trans-%J-%I-output.log -e logs/saige_trans-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_trans[1-7774]%300" < testing_scripts/010-Trans_of_cis.sh 
+
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -99,7 +101,7 @@ echo "Testing eQTLs"
 step1prefix=${catdir}/${gene}_npc${n_expr_pcs}
 step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_trans_by_cis
 
-# Now perform the cis-only analysis
+# Now perform the Genome-wide analysis - NOTE: This also includes cis-variants
 echo "Performing the trans-by-cis-only analysis"
 singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step2_tests_qtl.R \
     --bedFile=${general_file_dir}/genotypes/plink_genotypes_cis_${level}.bed      \

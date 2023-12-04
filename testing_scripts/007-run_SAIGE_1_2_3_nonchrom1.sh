@@ -9,9 +9,9 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-category="Tuft_cell"
+level="Enterocyte"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="label__machine"
+aggregate_on="category__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"

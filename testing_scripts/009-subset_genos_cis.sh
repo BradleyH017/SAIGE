@@ -7,9 +7,9 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Tuft_cell"
+level="Enterocyte"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="label__machine"
+aggregate_on="category__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"
@@ -34,12 +34,17 @@ else
     catdir=${general_file_dir}/${aggregate_on}/${level}
 fi 
 
+# Load optimum PCs
+optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
+n_expr_pcs=$(<"$optim_npcs_file")
+
 # First need to subset the genotype files for those that pass significance (may also want to do tests for independence before this)
-for file in "${catdir}"/*.txt.gz; do
+for file in "${catdir}"/chr*_nPC_${n_expr_pcs}.txt; do
+    echo $file
     # Extract the file name without the extension
     filename=$(basename "$file" .txt.gz)
     # Use zcat to read the compressed file, awk to filter rows, and grep to select columns
-    zcat "$file" | awk -v col="13" -v val="$cis_nominal_p_cut_off" '$col < val' | cut -f "3" > "${filename}_cis_below_threshold.txt"
+    cat "$file" | awk -v col="13" -v val="$cis_nominal_p_cut_off" '$col < val' | cut -f "3" > "${filename}_cis_below_threshold.txt"
 done
 
 # Then want to combine

@@ -3,9 +3,9 @@
 #### Summary of the iteration of results across chromosome 1
 
 # Define options for this test (will ultimately be inherited) and general options
-category="Tuft_cell"
+level="Enterocyte"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="label__machine"
+aggregate_on="category__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"
@@ -60,9 +60,6 @@ for f in ${catdir}/*_npc${optim_npcs}_cis.txt
         do
         tail -n +2 $f >> ${catdir}/chr1_nPC_${optim_npcs}.txt
 done
-
-# Compress the results from this file
-gzip ${catdir}/chr1_nPC_${optim_npcs}.txt
 
 # Remove intermediate files
 rm ${catdir}/ENSG*

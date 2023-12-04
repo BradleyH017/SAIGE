@@ -40,12 +40,7 @@ print("Loaded libraries")
 def preprocess_covariates(df, scale_covariates):
     processed_df = df.copy()
     for column in df.columns:
-        if(scale_covariates == "true"):
-            if df[column].dtype == 'float64':  # Check if the column is of type float
-                # Scale and center numerical columns
-                scaler = StandardScaler()
-                processed_df[column] = scaler.fit_transform(df[[column]])
-        elif pd.api.types.is_categorical_dtype(df[column]):  # Check if the column is categorical
+        if pd.api.types.is_categorical_dtype(df[column]):  # Check if the column is categorical
             # Create dummy variables for categorical columns
             dummy_columns = pd.get_dummies(df[column], prefix=column, drop_first=True)
             # Remove the original categorical column
@@ -54,6 +49,10 @@ def preprocess_covariates(df, scale_covariates):
             dummy_columns.columns = [column]
             # Concatenate the dummy columns to the processed DataFrame
             processed_df = pd.concat([processed_df, dummy_columns], axis=1)
+        elif df[column].dtype == 'float64' and scale_covariates == "true":  # Check if the column is of type float
+                # Scale and center numerical columns
+                scaler = StandardScaler()
+                processed_df[column] = scaler.fit_transform(df[[column]])
     return processed_df
 
 # Inherit option

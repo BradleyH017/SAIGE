@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI (test)
-# bsub -o logs/saige_test-%J-output.log -e logs/saige_test-%J-error.log -q long -G team152 -n 4 -M 20000 -a "memlimit=True" -R "select[mem>20000] rusage[mem=20000] span[hosts=1]" -J "saige_test" < testing_scripts/run_SAIGE_1_2.sh 
-
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-816]%200" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Tuft_cell"
+level="Enterocyte"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="label__machine"
+aggregate_on="category__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"
@@ -37,7 +36,6 @@ fi
 # If submitting as an array job for chromosome 1 genes only:
 gene_list=${catdir}/chr1_genes.txt
 gene=$(head $gene_list -n ${LSB_JOBINDEX} | tail -n 1)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-816]%200" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
 
 # Add genotype PCs to the covariates
 for ((i=1; i<=n_geno_pcs; i++)); do
