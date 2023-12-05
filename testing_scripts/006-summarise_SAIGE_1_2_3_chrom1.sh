@@ -22,9 +22,9 @@ cis_window=1000000
 
 # Set up dir
 if [ -n "$condition_col" ]; then
-        catdir=${general_file_dir}/${aggregate_on}/${category}/${condition_col}/${condition}
+        catdir=${general_file_dir}/${aggregate_on}/${level}/${condition_col}/${condition}
 else
-        catdir=${general_file_dir}/${aggregate_on}/${category}
+        catdir=${general_file_dir}/${aggregate_on}/${level}
 fi
 
 # Concat all of the ACAT results from chromosome 1 within each nPC
