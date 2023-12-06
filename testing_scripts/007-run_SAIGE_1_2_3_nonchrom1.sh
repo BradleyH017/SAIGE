@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### SAIGE on the rest of the chromosomes - using the optimum PC from step 005 (chromosome 1 only)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-6958]%250" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-2438]%250" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
 
 
 # Load modules and docker
@@ -19,8 +19,8 @@ sample_id="sanger_sample_id"
 nperc=1
 condition_col=""
 condition=""
-covariates="age_imputed,sex,Keras:predicted_celltype_probability"
-covariates_cell="Keras:predicted_celltype_probability"
+covariates="age_imputed,sex"
+covariates_cell=""
 expression_pca=True
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
@@ -29,9 +29,9 @@ n_geno_pcs=5
 
 # Set up dir
 if [ -n "$condition_col" ]; then
-    catdir=${general_file_dir}/${aggregate_on}/${category}/${condition_col}/${condition}
+    catdir=${general_file_dir}/${aggregate_on}/${level}/${condition_col}/${condition}
 else
-    catdir=${general_file_dir}/${aggregate_on}/${category}
+    catdir=${general_file_dir}/${aggregate_on}/${level}
 fi
 
 # If submitting as an array job for non-chromosome 1 genes:

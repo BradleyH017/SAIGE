@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI (test)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-816]%200" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-973]%300" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -24,6 +24,7 @@ annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_q
 cis_only=true
 cis_window=1000000
 n_geno_pcs=5
+use_GRM=FALSE
 
 echo "Prepping the directory variables"
 # Construct the level directory path
@@ -53,7 +54,7 @@ else
         n_expr_pc_params=0
 fi
 
-for n_expr_pcs in 5 10 15 20 $n_expr_pc_params; do
+for n_expr_pcs in $n_expr_pc_params; do
         echo "Working for expr PC number"
         echo $n_expr_pcs
         echo "Prepping the covariates"
@@ -76,7 +77,7 @@ for n_expr_pcs in 5 10 15 20 $n_expr_pc_params; do
         echo "Estimating the variance"
         singularity exec -B /lustre -B /software $saige_eqtl step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=FALSE  \
-                --useGRMtoFitNULL=FALSE \
+                --useGRMtoFitNULL=$use_GRM \
                 --phenoFile=${catdir}/saige_filt_expr_input.txt	\
                 --phenoCol=${gene}       \
                 --covarColList=${covariates_sample_cell}    \
@@ -90,7 +91,7 @@ for n_expr_pcs in 5 10 15 20 $n_expr_pc_params; do
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
                 --tol=0.00001   \
-                --plinkFile=${general_file_dir}/genotypes/plink_genotypes      \
+                --plinkFile=${general_file_dir}/genotypes/plink_genotypes_ordered      \
                 --IsOverwriteVarianceRatioFile=TRUE
 
         # Perform the analysis cis-only or genome-wide
@@ -129,12 +130,13 @@ for n_expr_pcs in 5 10 15 20 $n_expr_pc_params; do
                         --geneName=$gene       \
                         --genePval_outputFile=${step2prefix}_ACAT.txt
 
-                # Add gene name to the output
-                awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > tmp && mv tmp ${step2prefix}.txt 
+                # Q-value correction of the per gene results (specify the input file, the column that encodes the p-value, the new column name and whether to run within gene)
+                echo "Performing q-value correction"
+                Rscript testing_scripts/bin/qvalue_correction.R -f ${step2prefix}.txt -c "13" -n "qvalues" -w "TRUE"
 
-                # Remove the intermediate files (step 1 only)
-                rm ${step1prefix}*
-                echo "Finished analysis, removed intermediate files"
+                # Add gene name to the output
+                awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > tmp && mv tmp ${step2prefix}.txt
+                echo "Finished analysis"
         else
                 step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_gw.txt
                 singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step2_tests_qtl.R &> ${catdir}/${gene}_npc${n_expr_pcs}_log.txt \

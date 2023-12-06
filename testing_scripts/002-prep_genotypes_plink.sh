@@ -23,14 +23,27 @@ testoutfile=${geno_dir}/plink_genotypes_chr9.fam
 if [ ! -f "$testoutfile" ]; then
     # Make a plink file of each vcf chromosome [NOTE: This requires numeric chromosomes, so have updated '--output-chr' flag to specify this and therefore differs from the plink file generates in the eqtl nextflow pipeline]
     # bcf conda env
+    echo "Generating the plink file" 
     pgen_or_bed="dosage=DS --make-bed"
     plink2_filters='--allow-extra-chr 0 --chr 1-22 XY --output-chr MT --snps-only --rm-dup exclude-all'
     plink2 --vcf ${file__vcf} ${pgen_or_bed} ${plink2_filters} --hwe 0.0000001 --out ${geno_dir}/plink_genotypes
 
+    echo "Reordering the plinnk file"
+    # Re-order these
+    seq 1 22 > ${geno_dir}/chromosome_order.txt
+    awk '{print $1, $1}' ${geno_dir}/chromosome_order.txt > ${geno_dir}/chromosome_order_final.txt
+    plink --bfile ${geno_dir}/plink_genotypes --update-map ${geno_dir}/chromosome_order_final.txt --make-bed --out ${geno_dir}/plink_genotypes_ordered
+
+    echo "Computing PCA matrix"
     # Compute 20 genotype PCs and save into the geno dir (ultimately, these will be inherited)
     # Also only include samples in the anndata file used in analysis (a bit hacky, but won't be a problem once in the pipeline) - keep_samples made from the filtered anndata object of both conditions
-    plink2 --bfile ${geno_dir}/plink_genotypes --keep ${general_file_dir}/keep_samples.txt --pca 20 --out ${geno_dir}/plink_genotypes
+    plink2 --bfile ${geno_dir}/plink_genotypes_ordered --keep ${general_file_dir}/keep_samples.txt --pca 20 --out ${geno_dir}/plink_genotypes_ordered
 
+    echo "Computing GRM"
+    # Also generate a GRM for these samples (from the bed file)
+    plink2 --bfile ${geno_dir}/plink_genotypes_ordered --keep ${general_file_dir}/keep_samples.txt --make-grm-bin --out ${geno_dir}/plink_genotypes_ordered
+
+    echo "Dividing per chromosome"
     # Also divide the plink file by chromosome for ease when running cis-only
     for chr_num in {1..22} X Y
     do
