@@ -15,20 +15,19 @@ catdir = opt$c
 
 # Load files and process
 group_files=list.files(catdir)
-group_files=group_files[grep("ACAT_all", group_files)]
-nPCs = gsub("_ACAT_all.txt", "", group_files)
+group_files=group_files[grep("_minimum_q_all_genes", group_files)]
+nPCs = gsub("_minimum_q_all_genes.txt", "", group_files)
 nPCs = gsub("chr1_nPC_", "", nPCs)
 
 res = data.frame("nGenotype_PCs"=nPCs, "neGenes"="")
-cols = c("gene", "ACAT_p", "top_MarkerID", "top_pval")
 for(f in nPCs){
-    temp = read.delim(paste0(catdir, "/chr1_nPC_", f, "_ACAT_all.txt"), header=F)
-    temp = temp[-1,]
-    colnames(temp) = cols
-    nsig = nrow(temp[temp$top_pval < 5e-8,])
+    temp = read.delim(paste0(catdir, "/chr1_nPC_", f, "_minimum_q_all_genes.txt"), header=T)
+    nsig = nrow(temp[temp$qvalues_across_genes < 0.05,])
     res$neGenes[which(nPCs == f)] = nsig
     rm(temp)
 }
+print("NUumber of eGenes per conditions (FDR < 0.05)")
+print(res)
 
 # Save the value of the nPCs at which the maximum number of 
 max_res = res[res$neGenes == max(res$neGenes),]$nGenotype_PCs

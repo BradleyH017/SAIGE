@@ -7,7 +7,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Enterocyte"
+level="T_Cell"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="category__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -130,12 +130,13 @@ for n_expr_pcs in $n_expr_pc_params; do
                         --geneName=$gene       \
                         --genePval_outputFile=${step2prefix}_ACAT.txt
 
+                # Add gene name to the output
+                awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > tmp && mv tmp ${step2prefix}.txt
+
                 # Q-value correction of the per gene results (specify the input file, the column that encodes the p-value, the new column name and whether to run within gene)
                 echo "Performing q-value correction"
                 Rscript testing_scripts/bin/qvalue_correction.R -f ${step2prefix}.txt -c "13" -n "qvalues" -w "TRUE"
 
-                # Add gene name to the output
-                awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > tmp && mv tmp ${step2prefix}.txt
                 echo "Finished analysis"
         else
                 step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_gw.txt

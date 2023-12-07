@@ -301,17 +301,17 @@ def main():
             
     # Save counts + covariates
     # NOTE: This currently isn't implemented to save sparse or compressed files (as SAIGE requires dense input) - 80k cells and 10k genes = ~2.5GB file
-    # counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
+    counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
     # Do this per gene with the maximum number of expression PCs
-    gene_savdir=f"{savedir}/per_gene_input_files"
-    if os.path.exists(gene_savdir) == False:
-        os.makedirs(gene_savdir, exist_ok=True)
+    #gene_savdir=f"{savedir}/per_gene_input_files"
+    #if os.path.exists(gene_savdir) == False:
+    #    os.makedirs(gene_savdir, exist_ok=True)
     
     # Save per gene
-    for gene_name in keep_genes_names:
-        selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
-        new_df = counts[selected_columns]
-        new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
+    #for gene_name in keep_genes_names:
+    #    selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
+    #    new_df = counts[selected_columns]
+    #    new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
     
     
 
