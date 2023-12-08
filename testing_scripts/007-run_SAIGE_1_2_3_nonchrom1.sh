@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### SAIGE on the rest of the chromosomes - using the optimum PC from step 005 (chromosome 1 only)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-8540]%300" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-3649]%300" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
 
 
 # Load modules and docker

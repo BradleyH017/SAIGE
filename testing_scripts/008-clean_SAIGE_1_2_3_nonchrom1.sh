@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### Cleaning SAIGE on the rest of the chromomes (per chromosome) - This needs to be submitted as an array - 1 job per non '1' chromosome
-# bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[1-22]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[1-21]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
 
 
 module load ISG/singularity/3.9.0
@@ -34,8 +34,7 @@ else
 fi
 
 #  Use the job ID as the chromosome number in this instance
-#gene_chr=$((LSB_JOBINDEX + 1))
-gene_chr=${LSB_JOBINDEX}
+gene_chr=$((LSB_JOBINDEX + 1))
 
 # Load the optimum number of PCs
 optim_npcs_file=${catdir}/optim_nPCs_chr1.txt

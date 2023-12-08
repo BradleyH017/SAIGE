@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI (test)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-973]%300" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-426]%300" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -49,7 +49,7 @@ knee_file=${catdir}/knee.txt
 knee=$(<"$knee_file")
 
 if [[ "$expression_pca" == "true" ]]; then
-        n_expr_pc_params="5 10 15 20 $knee"
+        n_expr_pc_params="0 5 10 15 20 $knee"
 else
         n_expr_pc_params=0
 fi
@@ -74,6 +74,12 @@ for n_expr_pcs in $n_expr_pc_params; do
         # Specify sample-level covariates
         covariates_sample=$(echo "$covariates" | tr ',' '\n' | sort | comm -23 - <(echo "$covariates_cell_pc" | tr ',' '\n' | sort) | tr '\n' ',' | sed 's/,$//')
 
+        # Fix input of first ','
+        if [[ $covariates_sample_cell == ,* ]]; then
+        # Remove the first character
+                covariates_sample_cell=${covariates_sample_cell:1}
+        fi
+
         echo "Estimating the variance"
         singularity exec -B /lustre -B /software $saige_eqtl step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=FALSE  \
@@ -91,6 +97,9 @@ for n_expr_pcs in $n_expr_pc_params; do
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
                 --tol=0.00001   \
+                --sexCol="sex" \
+                --FemaleCode="0" \
+                --MaleCode="1" \
                 --plinkFile=${general_file_dir}/genotypes/plink_genotypes_ordered      \
                 --IsOverwriteVarianceRatioFile=TRUE
 
@@ -118,6 +127,7 @@ for n_expr_pcs in $n_expr_pc_params; do
                         --minMAF=0.05 \
                         --minMAC=20 \
                         --LOCO=FALSE    \
+                        --is_imputed_data=TRUE \
                         --GMMATmodelFile=${step1prefix}.rda     \
                         --SPAcutoff=2 \
                         --varianceRatioFile=${step1prefix}.varianceRatio.txt    \

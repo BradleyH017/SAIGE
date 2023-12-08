@@ -229,22 +229,22 @@ def main():
     print("Filtering anndata")
     temp = adata[adata.obs[aggregate_on] == level]
     
-    
     # Filter for intersection with genotypes
     temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
     
-    
-    # Identify genes expressed in > n% of cells
+    # Identify genes expressed in > n% of samples
     print("Filtering lowly expressed genes")
     counts=temp.X
-    count_per_column = np.array((counts > 1).sum(axis=0))[0]
-    min_cells = math.ceil(temp.shape[0]*(int(nperc)/100))
-    keep_genes = np.where(count_per_column > counts.shape[0] * nperc/100)[0]
-    keep_genes_names = temp.var.index[keep_genes].values
-    # Subset counts for these genes
-    counts = counts[:,keep_genes]
-    print(f"Final shape is:{counts.shape}")
-    
+    counts = pd.DataFrame.sparse.from_spmatrix(counts)
+    counts.columns = temp.var.index.values
+    counts = counts.loc[:, counts.sum() > 0]
+    counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
+    counts_per_sample = counts.groupby(genotype_id).sum()
+    min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
+    count_per_column = np.array((counts_per_sample > 1).sum(axis=0))
+    keep_genes = np.where(count_per_column > min_samples)[0]
+    counts = counts.iloc[:,keep_genes]
+    print(f"Final shape is:{counts.shape}")    
     
     # Preprocess the covariates (scale continuous, dummy for categorical)
     print("Extracting and sorting covariates")
@@ -252,9 +252,7 @@ def main():
     # Preprocess the covariates (scale continuous, dummy for categorical)
     to_add = preprocess_covariates(to_add, scale_covariates)
     # Bind this onto the counts
-    counts = pd.DataFrame.sparse.from_spmatrix(counts)
     counts.index = temp.obs.index
-    counts.columns = keep_genes_names
     counts = counts.merge(to_add, left_index=True, right_index=True)
     # Add the donor ID (genotyping ID so that we match the genotypes)
     counts[genotype_id] = temp.obs[genotype_id]
@@ -263,10 +261,8 @@ def main():
     counts = counts.merge(geno_pcs, on=genotype_id, how='left')
     counts.set_index(index_use, inplace=True)
     
-    
     # If a covariate has ':' in it's name, this will throw errors in SAIGE, replace this with '_'
     counts.columns=counts.columns.str.replace(':', '_')
-    
     
     # Compute and add the expression PCs
     if expression_pca == "true":
