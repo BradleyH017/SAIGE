@@ -20,7 +20,7 @@ condition_col="NULL"
 condition="NULL"
 covariates="age_imputed,sex,Keras:predicted_celltype_probability"
 covariates_cell="Keras:predicted_celltype_probability"
-expression_pca=True
+expression_pca="true"
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
 cis_window=1000000
@@ -53,3 +53,5 @@ while read gene; do
 done < ${catdir}/chr${gene_chr}_genes.txt
 
 # bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[1-21]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
+
+# Generate a list of genes to run conditional analysis on (q value within gene < 0.05)

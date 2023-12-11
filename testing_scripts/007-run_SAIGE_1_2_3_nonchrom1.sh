@@ -21,7 +21,7 @@ condition_col=""
 condition=""
 covariates="age_imputed,sex"
 covariates_cell=""
-expression_pca=True
+expression_pca="true"
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
 cis_window=1000000
@@ -75,23 +75,26 @@ covariates_sample=$(echo "$covariates" | tr ',' '\n' | sort | comm -23 - <(echo 
 
 echo "Estimating the variance"
 singularity exec -B /lustre -B /software $saige_eqtl step1_fitNULLGLMM_qtl.R \
-    --useSparseGRMtoFitNULL=FALSE  \
-    --useGRMtoFitNULL=FALSE \
-    --phenoFile=${catdir}/saige_filt_expr_input.txt	\
-    --phenoCol=${gene}       \
-    --covarColList=${covariates_sample_cell}    \
-    --sampleCovarColList=${covariates_sample}      \
-    --sampleIDColinphenoFile=${genotype_id} \
-    --traitType=count \
-    --outputPrefix=${catdir}/${gene}_npc${n_expr_pcs} \
-    --skipVarianceRatioEstimation=FALSE  \
-    --isRemoveZerosinPheno=FALSE \
-    --isCovariateOffset=FALSE  \
-    --isCovariateTransform=TRUE  \
-    --skipModelFitting=FALSE  \
-    --tol=0.00001   \
-    --plinkFile=${general_file_dir}/genotypes/plink_genotypes      \
-    --IsOverwriteVarianceRatioFile=TRUE
+        --useSparseGRMtoFitNULL=FALSE  \
+        --useGRMtoFitNULL=$use_GRM \
+        --phenoFile=${catdir}/per_gene_input_files/${gene}_saige_filt_expr_input.txt	\
+        --phenoCol=${gene}       \
+        --covarColList=${covariates_sample_cell}    \
+        --sampleCovarColList=${covariates_sample}      \
+        --sampleIDColinphenoFile=${genotype_id} \
+        --traitType=count \
+        --outputPrefix=${catdir}/${gene}_npc${n_expr_pcs} \
+        --skipVarianceRatioEstimation=FALSE  \
+        --isRemoveZerosinPheno=FALSE \
+        --isCovariateOffset=FALSE  \
+        --isCovariateTransform=TRUE  \
+        --skipModelFitting=FALSE  \
+        --tol=0.00001   \
+        --sexCol="sex" \
+        --FemaleCode="0" \
+        --MaleCode="1" \
+        --plinkFile=${general_file_dir}/genotypes/plink_genotypes_ordered      \
+        --IsOverwriteVarianceRatioFile=TRUE
 
 # Perform the analysis cis-only or genome-wide
 echo "Testing eQTLs"
@@ -142,17 +145,21 @@ if [ "$cis_only" = true ]; then
 else
     step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_gw.txt
     singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step2_tests_qtl.R \
-        --bedFile=${general_file_dir}/genotypes/plink_genotypes.bed      \
-        --bimFile=${general_file_dir}/genotypes/plink_genotypes.bim      \
-        --famFile=${general_file_dir}/genotypes/plink_genotypes.fam      \
-        --SAIGEOutputFile=${step2prefix}     \
+        --bedFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bed      \
+        --bimFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bim      \
+        --famFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.fam      \
+        --SAIGEOutputFile=${step2prefix}.txt     \
+        --chrom=${gene_chr}       \
         --minMAF=0.05 \
         --minMAC=20 \
         --LOCO=FALSE    \
+        --is_imputed_data=TRUE \
         --GMMATmodelFile=${step1prefix}.rda     \
         --SPAcutoff=2 \
         --varianceRatioFile=${step1prefix}.varianceRatio.txt    \
+        --rangestoIncludeFile=${step2prefix}_region_file.txt     \
         --markers_per_chunk=10000
+        
 
     # Run the ACAT test on the genome wide results
     singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step3_gene_pvalue_qtl.R \

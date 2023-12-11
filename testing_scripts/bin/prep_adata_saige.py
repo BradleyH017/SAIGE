@@ -286,28 +286,27 @@ def main():
         loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
         counts = counts.merge(loadings, left_index=True, right_index=True)
         
-        
     # Save this as a dataframe in a directory specific to this resolution - make this if not already
     print("Saving")
     # Save list of gene names to test
     with open(f"{savedir}/test_genes.txt", 'w') as file:
-        for item in keep_genes_names:
+        for item in counts.columns.values:
             file.write(f"{item}\n")
             
             
     # Save counts + covariates
     # NOTE: This currently isn't implemented to save sparse or compressed files (as SAIGE requires dense input) - 80k cells and 10k genes = ~2.5GB file
-    counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
-    # Do this per gene with the maximum number of expression PCs
-    #gene_savdir=f"{savedir}/per_gene_input_files"
-    #if os.path.exists(gene_savdir) == False:
-    #    os.makedirs(gene_savdir, exist_ok=True)
+    #counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
+    # Do this per gene with the maximum number of expression PCs - may end up being quicker in SAIGE
+    gene_savdir=f"{savedir}/per_gene_input_files"
+    if os.path.exists(gene_savdir) == False:
+        os.makedirs(gene_savdir, exist_ok=True)
     
     # Save per gene
-    #for gene_name in keep_genes_names:
-    #    selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
-    #    new_df = counts[selected_columns]
-    #    new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
+    for gene_name in counts.columns.values:
+        selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
+        new_df = counts[selected_columns]
+        new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
     
     
 
