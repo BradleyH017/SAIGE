@@ -25,7 +25,7 @@ within = opt$w
 
 # Load data
 res = read.delim(file, header=F)
-if(res[,column][1] == "p.value"){
+if(is.na(as.numeric(res[,column][1]))){
     colnames(res) = res[1,]
     res = res[-1,]
 }
@@ -43,7 +43,7 @@ res[,new_column] = qobj$qvalues
 res$lfdr = qobj$lfdr
 
 # Replace the original file with the current one
-write.table(res, file, col.names=T, quote=F, sep = "\t")
+write.table(res, file, col.names=T, quote=F, sep = "\t",row.names=F)
 
 # Save a file with the variant with the minimum qvalue for this gene
 min_file = gsub(".txt", "", file)

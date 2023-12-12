@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### SAIGE on the rest of the chromosomes - using the optimum PC from step 005 (chromosome 1 only)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-3649]%300" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-11594]%400" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
 
 
 # Load modules and docker
@@ -9,9 +9,9 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_Cell"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="category__machine"
+aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"
@@ -26,6 +26,8 @@ annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_q
 cis_only=true
 cis_window=1000000
 n_geno_pcs=5
+use_GRM=FALSE
+repo_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/scripts/scRNAseq/SAIGE"
 
 # Set up dir
 if [ -n "$condition_col" ]; then
@@ -44,7 +46,7 @@ for ((i=1; i<=n_geno_pcs; i++)); do
 done
 
 # Define the number of expression PCs to use
-if [[ "$expression_pca" == "True" ]]; then
+if [[ "$expression_pca" == "true" ]]; then
     # Load the optimum number of PCs (expression)
     optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
     n_expr_pcs=$(<"$optim_npcs_file")
@@ -137,7 +139,7 @@ if [ "$cis_only" = true ]; then
 
     # Q-value correction of the per gene results (specify the input file, the column that encodes the p-value, the new column name and whether to run within gene)
     echo "Performing q-value correction"
-    Rscript testing_scripts/bin/qvalue_correction.R -f ${step2prefix}.txt -c "13" -n "qvalues" -w "TRUE"
+    Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${step2prefix}.txt -c "13" -n "qvalues" -w "TRUE"
 
     # Remove the intermediate files (step 1 only)
     rm ${step1prefix}*
