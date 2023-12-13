@@ -21,13 +21,10 @@ import statsmodels.api as sm
 from matplotlib_venn import venn2
 
 
-
-
-
 # Load the data (multiple chromosomes)
 catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/T_cell_CD8_1"
 outdir=f"{catdir}/plots"
-chr=range(1,2)
+chr=range(1,6)
 formatted_range = f"{chr[0]}_{chr[-1]}"
 n_expr_pcs="15"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
@@ -226,6 +223,22 @@ for c in cutoffs:
     perc_tensor_win = "{:.2f}".format(100*(ntensor_win/all_test))
     print(f"At a p-value threshold of {c}: Out of a possible {all_test} tests, SAIGE wins {nsaige_win} times ({perc_saige_win}%), Tensor wins {ntensor_win} times ({perc_tensor_win}%)")
 
+
+# Is the win rate dependent on MAF
+# Compare the absolute difference in beta across MAF
+merged['AF_Allele2'] = merged['AF_Allele2'].astype('float')
+merged['absolute_diff_betas'] = np.abs(merged['slope'] - merged['BETA'])
+merged['MAF'] = np.where(merged['AF_Allele2'] > 0.5, 1 - merged['AF_Allele2'], merged['AF_Allele2'])
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+sns.scatterplot(x='MAF', y='absolute_diff_betas', data=merged)
+plt.xlabel('MAF')
+plt.ylabel('Absolute difference in effect size (SAIGE-QTL vs TensorQTL)')
+plt.xlim(0, 0.5)
+plt.title(f"Chromosome {formatted_range} only")
+plt.savefig(f"{outdir}/absolute_effect_diff_vs_maf_pb_chr{formatted_range}_py.png")
+plt.clf()
+
 # Looking at the top hit per gene (maybe we greater a greater hit rate per gene as opposed to variants?) [Make sure dfs are corrected same way]
 pb_res['qvalue_within_gene'] = pb_res.groupby('phenotype_id')['pval_nominal'].transform(lambda x: smt.multipletests(x, method='fdr_bh')[1])
 pb_res_min_qvalue_rows = pb_res.loc[pb_res.groupby('phenotype_id')['qvalue_within_gene'].idxmin()]
@@ -296,6 +309,49 @@ plt.title(f"FDR < 0.05, Chromosome {formatted_range} only")
 #plt.text(5.5, 0.5, f'Rho: {rho:.2f}\nP-value: {p_value:.4f}', color='blue', ha='right')
 # Save the plot
 plt.savefig(f"{outdir}/cor_p_values_pb_fdr_0.05_chr{formatted_range}_py.png")
+plt.clf()
+
+# Plot the relationship between significance in one study and MAF
+sub['AF_Allele2'] = sub['AF_Allele2'].astype('float')
+sub['absolute_diff_betas'] = np.abs(sub['slope'] - sub['BETA'])
+sub['MAF'] = np.where(sub['AF_Allele2'] > 0.5, 1 - sub['AF_Allele2'], sub['AF_Allele2'])
+# Plot, colouring points by where they are significant
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+sns.scatterplot(x='MAF', y='absolute_diff_betas', hue='exclusivity', data=sub)
+plt.xlabel('MAF')
+plt.ylabel('Absolute difference in effect size (SAIGE-QTL vs TensorQTL)')
+plt.xlim(0, 0.5)
+plt.title(f"FDR<0.05, Chromosome {formatted_range} only")
+plt.savefig(f"{outdir}/absolute_effect_diff_vs_maf_pb_fdr_0.05_chr{formatted_range}_py.png")
+plt.clf()
+
+# Plot the distribution of effect differences, within exclusivity
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+groups = np.unique(sub.exclusivity)
+for g in groups:
+    sns.distplot(sub[sub['exclusivity'] == g].absolute_diff_betas, hist=False, rug=True, label=g)
+
+plt.legend(bbox_to_anchor=(1.0, 1.0))
+plt.title('Distribution absolute differences in effect sizes / exclusivity')
+plt.xlabel('Difference in effect sizes')
+#plt.axvline(x = 0.7, color = 'red', linestyle = '--', alpha = 0.5)
+plt.savefig(f"{outdir}/dist_absolute_effect_diff_pb_fdr_0.05_chr{formatted_range}_py.png", bbox_inches='tight')
+plt.clf()
+
+# Plot the distribution of effect differences, within exclusivity
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+groups = np.unique(sub.exclusivity)
+for g in groups:
+    sns.distplot(sub[sub['exclusivity'] == g].MAF, hist=False, rug=True, label=g)
+
+plt.legend(bbox_to_anchor=(1.0, 1.0))
+plt.title('Distribution MAF / exclusivity')
+plt.xlabel('MAF')
+plt.xlim(0,0.5)
+plt.savefig(f"{outdir}/dist_maf_pb_fdr_0.05_chr{formatted_range}_py.png", bbox_inches='tight')
 plt.clf()
 
 # For nominal p < 5e-8

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Cleaning up the 
+# Cleaning up the conditional analysis results and combining into per-chromosome results
+# bsub -o logs/saige_tidy_conditional-%J-%I-output.log -e logs/saige_tidy_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy_conditional[2-22]" < testing_scripts/010-clean_combine_conditional.sh 
+
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -42,3 +44,27 @@ if [[ "$expression_pca" == "true" ]]; then
 else
     n_expr_pcs=0
 fi
+
+# Run per chromosome within category
+gene_chr=${LSB_JOBINDEX}
+
+# Across each gene from this chromosome
+while read gene; do
+    echo $gene
+    # Across each gene of this chromosome
+    # Grab the round 1 results
+    awk 'BEGIN {OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,"","\t\t\t\t",$16,$18,$19}' ${catdir}/${gene}__npc${n_expr_pcs}_cis_minimum_q.txt | tail -n 1 >> ${catdir}/${gene}_temp_independent.txt
+    # For every round for this gene in the conditional analysis directory (this will automatically be in order of round)
+    for f in ${catdir}/conditional/${gene}*_minimum_q*; do
+        tail -n 1 $f >> ${catdir}/${gene}_temp_independent.txt
+    done
+    # Add the 'round' column to the output
+    awk 'BEGIN {OFS="\t"} {print $0, NR}' ${catdir}/${gene}_temp_independent.txt > ${catdir}/${gene}_temp_independent2.txt && mv ${catdir}/${gene}_temp_independent2.txt ${catdir}/${gene}_temp_independent.txt
+    # Add the gene name to the file before combining with other genes
+    awk -v var_value="$gene" 'BEGIN {OFS="\t"} {print $0, var_value}' ${catdir}/${gene}_temp_independent.txt > ${catdir}/${gene}_temp_independent2.txt && mv ${catdir}/${gene}_temp_independent2.txt ${catdir}/${gene}_temp_independent.txt
+    # Append this onto those for the whole chromsome 
+    head -n 10 ${catdir}/${gene}_temp_independent.txt >> ${catdir}/conditional/chr${gene_chr}_conditionally_independent_effects.txt 
+    # Remove all of the conditional files for this gene and the temporary files
+    rm ${catdir}/conditional/${gene}*
+    rm ${catdir}/${gene}_temp_independent.txt
+done <${catdir}/chr${gene_chr}_genes.txt

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### SAIGE on the rest of the chromosomes - using the optimum PC from step 005 (chromosome 1 only)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-11594]%400" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-11594]%500" < testing_scripts/007-run_SAIGE_1_2_3_nonchrom1.sh 
 
 
 # Load modules and docker
@@ -140,10 +140,8 @@ if [ "$cis_only" = true ]; then
     # Q-value correction of the per gene results (specify the input file, the column that encodes the p-value, the new column name and whether to run within gene)
     echo "Performing q-value correction"
     Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${step2prefix}.txt -c "13" -n "qvalues" -w "TRUE"
+    echo "Finished analysis"
 
-    # Remove the intermediate files (step 1 only)
-    rm ${step1prefix}*
-    echo "Finished analysis, removed intermediate files"
 else
     step2prefix=${catdir}/${gene}__npc${n_expr_pcs}_gw.txt
     singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step2_tests_qtl.R \

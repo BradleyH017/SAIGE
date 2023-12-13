@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### Cleaning SAIGE on the rest of the chromomes (per chromosome) - This needs to be submitted as an array - 1 job per non '1' chromosome
-# bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[12-22]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
+# bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[3-21]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
 
 
 module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_Cell"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-aggregate_on="category__machine"
+aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
 genotype_pc__file=${general_file_dir}/genotypes/plink_genotypes.eigenvec
 genotype_id="Corrected_genotyping_ID"
@@ -33,8 +33,8 @@ else
         catdir=${general_file_dir}/${aggregate_on}/${level}
 fi
 
-#  Use the job ID as the chromosome number in this instance
-gene_chr=${LSB_JOBINDEX}
+#  Use the job ID as the chromosome number in this instance (running on non chromosome 1 so add 1)
+gene_chr=$((LSB_JOBINDEX + 1))
 
 # Load the optimum number of PCs
 optim_npcs_file=${catdir}/optim_nPCs_chr1.txt

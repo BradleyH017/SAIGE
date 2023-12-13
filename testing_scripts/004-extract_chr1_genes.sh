@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Extracting genes on chromosome one to allow iteration over these first
-level="T_cell_CD8_1"
+level="T_cell_CD4_CD40LGplus_2"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"

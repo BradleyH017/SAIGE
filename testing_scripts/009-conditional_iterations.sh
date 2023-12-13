@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI - conditioning on the top variant (present in the ACAT test results) - run per test gene
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-1542]%300" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
+# bsub -o logs/saige_conditional-%J-%I-output.log -e logs/saige_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_conditional[1-12899]%400" < testing_scripts/009-conditional_iterations.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -132,4 +132,3 @@ for c in {3..5}; do
     Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round${c}.txt -c "20" -n "c-${topvariant}.qvalues" -w "TRUE"
     echo "~~~~~~~~~~~~~~~~DONE CONDITIONAL ROUND ${c}!~~~~~~~~~~~~~~~~"
 done
-
