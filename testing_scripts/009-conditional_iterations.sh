@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI - conditioning on the top variant (present in the ACAT test results) - run per test gene
-# bsub -o logs/saige_conditional-%J-%I-output.log -e logs/saige_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_conditional[1-12899]%400" < testing_scripts/009-conditional_iterations.sh 
+# bsub -o logs/saige_conditional-%J-%I-output.log -e logs/saige_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_conditional[1-12211]%400" < testing_scripts/009-conditional_iterations.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_cell_CD8_1"
+level="T_cell_CD4_CD40LGplus_2"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"

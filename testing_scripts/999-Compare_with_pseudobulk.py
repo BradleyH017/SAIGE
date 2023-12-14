@@ -22,11 +22,11 @@ from matplotlib_venn import venn2
 
 
 # Load the data (multiple chromosomes)
-catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/T_cell_CD8_1"
+catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/T_cell_CD4_CD40LGplus_2"
 outdir=f"{catdir}/plots"
 chr=range(1,6)
 formatted_range = f"{chr[0]}_{chr[-1]}"
-n_expr_pcs="15"
+n_expr_pcs="10"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 
 

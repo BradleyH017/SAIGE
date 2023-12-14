@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI (test)
-# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-1305]%400" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
+# bsub -o logs/saige_array_test-%J-%I-output.log -e logs/saige_array_test-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_array_test[1-1221]%400" < testing_scripts/005-run_SAIGE_1_2_3_chrom1.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
