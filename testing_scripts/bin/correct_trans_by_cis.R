@@ -45,14 +45,21 @@ filtered_trans =
   filter(CHR != gene_chromosome | 
          (gene_strand == '-' & abs(as.numeric(POS) - as.numeric(gene_end)) >= as.numeric(window)) |
          (gene_strand == '+' & abs(as.numeric(POS) - as.numeric(gene_start)) >= as.numeric(window)))
-# Save the filtered output
-write.table(filtered_trans, sprintf(paste0(catdir, "/chr%s_nPC_%s_trans_by_cis_no_cis.txt"), as.character(chr), as.character(n_expr_pcs)))
 
 # Perform BH correction within genes
 print("Performing BH correction within gene")
 filtered_trans <- filtered_trans %>%
   group_by(Gene) %>%
-  mutate(p.value.bonf = p.adjust(p.value, method = "bonferroni"))
+  mutate(p.value.bonf = p.adjust(p.value, method = "bonferroni")) %>% as.data.frame()
+
+# Save the filtered output with bonferoni
+write.table(filtered_trans, sprintf(paste0(catdir, "/chr%s_nPC_%s_trans_by_cis_no_cis.txt"), as.character(chr), as.character(n_expr_pcs)), col.names=T, quote=F, sep = "\t", row.names=F)
+
+# Subset for those effects that are Bonferoni significant or minimum per gene
+############# REALLY NEED TO CHECK THIS STEP HERE ###################
+filtered_trans = filtered_trans %>%
+  group_by(Gene) %>%
+  filter(p.value.bonf == min(p.value.bonf) | p.value.bonf < 0.05) %>% as.data.frame()
 
 # head the output
 print("Top of trans-by-cis after BH/FDR correction")

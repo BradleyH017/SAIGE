@@ -8,7 +8,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_cell_CD4_CD40LGplus_2"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -48,7 +48,7 @@ fi
 # Run per chromosome within category
 gene_chr=${LSB_JOBINDEX}
 
-# Across each gene from this chromosome
+# Across each gene from this chromosome with significant effects
 while read gene; do
     echo $gene
     # Across each gene of this chromosome
@@ -65,6 +65,6 @@ while read gene; do
     # Append this onto those for the whole chromsome 
     head -n 10 ${catdir}/${gene}_temp_independent.txt >> ${catdir}/conditional/chr${gene_chr}_conditionally_independent_effects.txt 
     # Remove all of the conditional files for this gene and the temporary files
-    rm ${catdir}/conditional/${gene}*
-    rm ${catdir}/${gene}_temp_independent.txt
-done <${catdir}/chr${gene_chr}_genes.txt
+    #rm ${catdir}/conditional/${gene}*
+    #rm ${catdir}/${gene}_temp_independent.txt
+done <${catdir}/chr${gene_chr}_nPC_${n_expr_pcs}_minimum_q_all_genes_significant_genes.txt

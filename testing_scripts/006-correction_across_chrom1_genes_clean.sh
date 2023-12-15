@@ -80,3 +80,6 @@ for n_expr_pcs_test in 0 5 10 15 20 $knee; do
                 rm ${catdir}/*nPC_${n_expr_pcs_test}*
         fi
 done
+
+# Output list of Genes with q-value (across chromosome) significant effects
+awk -v threshold="0.05" -F '\t' 'NR==1 || $20 < threshold {print $17}' ${catdir}/chr1_nPC_${n_expr_pcs}_minimum_q_all_genes.txt | tr ',' '\t' | tail -n +2 > ${catdir}/chr1_nPC_${n_expr_pcs}_minimum_q_all_genes_significant_genes.txt

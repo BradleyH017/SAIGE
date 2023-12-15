@@ -25,7 +25,7 @@ within = opt$w
 
 # Load data
 res = read.delim(file, header=F)
-if(is.na(as.numeric(res[,column][1]))){
+if(is.na(as.numeric(res[,as.numeric(column)][1]))){
     colnames(res) = res[1,]
     res = res[-1,]
 }

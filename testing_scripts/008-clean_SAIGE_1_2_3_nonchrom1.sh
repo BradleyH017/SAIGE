@@ -8,7 +8,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_cell_CD4_CD40LGplus_2"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -25,6 +25,7 @@ annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_q
 cis_only=true
 cis_window=1000000
 n_geno_pcs=5
+repo_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/scripts/scRNAseq/SAIGE"
 
 # Construct the category directory path
 if [ "$condition_col" != "NULL" ]; then
@@ -51,5 +52,11 @@ while read gene; do
         # remove the intermediate files
         #rm ${catdir}/${gene}*
 done < ${catdir}/chr${gene_chr}_genes.txt
+
+# Then calculate the q-value for these results 
+Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${catdir}/chr${gene_chr}_nPC_${n_expr_pcs}_minimum_q_all_genes.txt -c "18" -n "qvalues_across_genes" -w "FALSE"
+
+# Output list of Genes with q-value (across chromosome) significant effects
+awk -v threshold="0.05" -F '\t' 'NR==1 || $20 < threshold {print $17}' ${catdir}/chr${gene_chr}_nPC_${n_expr_pcs}_minimum_q_all_genes.txt | tr ',' '\t' | tail -n +2 > ${catdir}/chr${gene_chr}_nPC_${n_expr_pcs}_minimum_q_all_genes_significant_genes.txt
 
 # bsub -o logs/saige_tidy-%J-%I-output.log -e logs/saige_tidy-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_tidy[1-21]" < testing_scripts/008-clean_SAIGE_1_2_3_nonchrom1.sh 
