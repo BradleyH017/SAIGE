@@ -45,6 +45,8 @@ def preprocess_covariates(df, scale_covariates):
             dummy_columns = pd.get_dummies(df[column], prefix=column, drop_first=True)
             # Remove the original categorical column
             processed_df.drop(column, axis=1, inplace=True)
+            # Replace True with 1, False with 0
+            dummy_columns.iloc[:, 0] = dummy_columns.iloc[:, 0].replace({True: 1, False: 0})
             # Replace the dummy variable column name with the original column name
             dummy_columns.columns = [column]
             # Concatenate the dummy columns to the processed DataFrame
@@ -120,6 +122,14 @@ def parse_options():
             required=True,
             help=''
         )
+    
+    parser.add_argument(
+            '-m', '--min',
+            action='store',
+            dest='min',
+            required=True,
+            help=''
+        )
 
     parser.add_argument(
             '-col', '--condition_col',
@@ -185,6 +195,7 @@ def main():
     sample_id = inherited_options.sample_id
     general_file_dir = inherited_options.general_file_dir
     nperc = int(inherited_options.nperc)
+    min_cells = int(inherited_options.min)
     condition_col = inherited_options.condition_col
     condition = inherited_options.condition
     covariates = inherited_options.covariates
@@ -232,19 +243,29 @@ def main():
     # Filter for intersection with genotypes
     temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
     
-    # Identify genes expressed in > n% of samples
+    # prep counts
     print("Filtering lowly expressed genes")
     counts=temp.X
     counts = pd.DataFrame.sparse.from_spmatrix(counts)
     counts.columns = temp.var.index.values
     counts = counts.loc[:, counts.sum() > 0]
     counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
+    counts.index = temp.obs.index
+    
+    # Subset samples if doing so
+    if min_cells != "NULL":
+        print(f"Working on min cells/sample of {min_cells}")
+        cells_per_sample = counts[genotype_id].value_counts()
+        keep_samples = cells_per_sample[cells_per_sample > min_cells].index
+        counts = counts[counts[genotype_id].isin(keep_samples)]
+    
+    # Subset the genes based on % expressing samples
     counts_per_sample = counts.groupby(genotype_id).sum()
     min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
-    count_per_column = np.array((counts_per_sample > 1).sum(axis=0))
+    count_per_column = counts_per_sample.astype(bool).sum(axis=0)
     keep_genes = np.where(count_per_column > min_samples)[0]
     counts = counts.iloc[:,keep_genes]
-    print(f"Final shape is:{counts.shape}")    
+    print(f"Final shape is:{counts.shape}") 
     
     # Preprocess the covariates (scale continuous, dummy for categorical)
     print("Extracting and sorting covariates")
@@ -252,10 +273,10 @@ def main():
     # Preprocess the covariates (scale continuous, dummy for categorical)
     to_add = preprocess_covariates(to_add, scale_covariates)
     # Bind this onto the counts
-    counts.index = temp.obs.index
     counts = counts.merge(to_add, left_index=True, right_index=True)
     # Add the donor ID (genotyping ID so that we match the genotypes)
     counts[genotype_id] = temp.obs[genotype_id]
+    
     # Also add the genotyping PCs
     index_use = counts.index
     counts = counts.merge(geno_pcs, on=genotype_id, how='left')
@@ -307,8 +328,8 @@ def main():
         selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
         new_df = counts[selected_columns]
         new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
-    
-    
+
+
 
 if __name__ == '__main__':
     main()
