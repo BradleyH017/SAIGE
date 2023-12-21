@@ -29,6 +29,7 @@ for(f in nPCs){
 res=res[order(as.numeric(res$nExpr_PCs)),]
 print("Number of eGenes per conditions (FDR < 0.05)")
 print(res)
+write.table(res, paste0(catdir, "/expr_nPCs_check_chr1.txt"), row.names=F, col.names=F, quote=F)
 
 # Save the value of the nPCs at which the maximum number of 
 max_res = res[res$neGenes == max(as.numeric(res$neGenes)),]$nExpr_PCs

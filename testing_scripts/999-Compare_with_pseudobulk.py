@@ -22,11 +22,11 @@ from matplotlib_venn import venn2
 
 
 # Load the data (multiple chromosomes)
-catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/T_cell_CD4_CD40LGplus_2"
+catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/Pericytes"
 outdir=f"{catdir}/plots"
 chr=range(1,6)
 formatted_range = f"{chr[0]}_{chr[-1]}"
-n_expr_pcs="10"
+n_expr_pcs="5"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 
 
@@ -52,12 +52,11 @@ pb_res = pd.concat(pb_res, axis=0, ignore_index=True)
 sc_res = []
 for c in chr:
     print(c)
-    fname = f"{catdir}/chr{str(c)}_nPC_{n_expr_pcs}.txt"
-    f = pd.read_csv(fname, sep = "\t", header=None, usecols=range(17))
+    fname = f"{catdir}/cis/chr{str(c)}_nPC_{n_expr_pcs}.txt.gz"
+    f = pd.read_csv(fname, sep = "\t", usecols=range(17), compression='gzip')
     sc_res.append(f)
 
 sc_res = pd.concat(sc_res, axis=0, ignore_index=True)
-sc_res.columns = ["CHR", "POS",  "MarkerID", "Allele1", "Allele2", "AC_Allele2", "AF_Allele2", "MissingRate", "BETA", "SE", "Tstat", "var", "p.value", "p.value.NA", "Is.SPA", "N", "Gene"]
 sc_res = sc_res.dropna(subset=['Gene'])
 mask = sc_res['Gene'].notna()
 sc_res = sc_res[mask & sc_res['Gene'].str.contains("ENSG")]
@@ -448,5 +447,40 @@ plt.title('Effect sizes of variants with dramatically greater expression in Tens
 plt.xlabel('TensorQTL beta (large significance variants)')
 plt.ylabel('SAIGEQTL beta (large effect variants)')
 plt.savefig(f"{outdir}/cor_beta_large_effect_variants.png", bbox_inches='tight')
+plt.clf()
+
+# Plot the exclusivity of the eQTL effects with respect to the expression of the gene
+expression_df = pd.DataFrame.sparse.from_spmatrix(adata.X)
+expression_df.columns=adata.var.index.values
+expression_df.index = adata.obs.index.values
+subexpr = expression_df.iloc[:,expression_df.columns.isin(sub.Gene.values)]
+subexprmeans = subexpr.mean()
+subexprmeans = pd.DataFrame({'Gene': subexprmeans.index, 'Mean': subexprmeans.values})
+sub = sub.merge(subexprmeans, on="Gene")
+sub['absolute_diff_betas'] = np.abs(sub['slope'] - sub['BETA'])
+
+
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+groups = np.unique(sub.exclusivity)
+for g in groups:
+    sns.distplot(sub[sub['exclusivity'] == g].Mean, hist=False, rug=True, label=g)
+
+plt.legend(bbox_to_anchor=(1.0, 1.0))
+plt.title('Distribution Mean expression / exclusivity')
+plt.xlabel('Mean expression')
+plt.xlim(0,0.5)
+plt.savefig(f"{outdir}/dist_expr_pb_fdr_0.05_chr{formatted_range}_py.png", bbox_inches='tight')
+plt.clf()
+
+
+plt.figure(figsize=(8, 6))
+fig,ax = plt.subplots(figsize=(8,6))
+sns.scatterplot(x='Mean', y='absolute_diff_betas', hue='exclusivity', data=sub)
+plt.xlabel('Mean expression')
+plt.ylabel('Absolute difference in effect size (SAIGE-QTL vs TensorQTL)')
+plt.xlim(0, 0.5)
+plt.title(f"FDR<0.05, Chromosome {formatted_range} only")
+plt.savefig(f"{outdir}/absolute_effect_diff_vs_expr_pb_fdr_0.05_chr{formatted_range}_py.png")
 plt.clf()
 
