@@ -7,7 +7,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Pericytes"
+level="Tuft_cell"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -34,25 +34,28 @@ else
         catdir=${general_file_dir}/${aggregate_on}/${level}
 fi
 
+echo "~~~~~~~~~~~~~~~~~~~~~~~~ Working on:${level} ~~~~~~~~~~~~~~~~~~~~~~~~"
+
 # Load n_expr_pcs
 optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
 n_expr_pcs=$(<"$optim_npcs_file")
 
 # Delete the unwanted trans-eQTL files
-rm ${catdir}/trans/ENSG*
+# rm ${catdir}/trans/ENSG*
 for c in {1..22}; do
     echo $c
     rm ${catdir}/trans/chr${c}_nPC_${n_expr_pcs}_trans_by_cis.txt # This one has not been filtered for the trans-only effects
 done
 
 # Remove the per-gene step1 files and other unwanted files
-rm ${catdir}/*_region*
-rm ${catdir}/*varianceRatio*
-rm ${catdir}/*.rda
-rm ${catdir}/*_cis_ACAT.txt
-rm ${catdir}/*_cis_minimum_q.txt
-rm ${catdir}/ENSG*
-rm ${catdir}/*all_genes_significant_genes.txt
+echo "Removing temporary files"
+find ${catdir} -type f -name '*_region*' -print0 | xargs -0 rm
+find ${catdir} -type f -name '*varianceRatio*' -print0 | xargs -0 rm
+find ${catdir} -type f -name '*.rda' -print0 | xargs -0 rm
+find ${catdir} -type f -name '*_cis_ACAT.txt' -print0 | xargs -0 rm
+find ${catdir} -type f -name '*_cis_minimum_q.txt' -print0 | xargs -0 rm
+find ${catdir} -type f -name 'ENSG*' -print0 | xargs -0 rm
+find ${catdir} -type f -name '*all_genes_significant_genes.txt' -print0 | xargs -0 rm
 
 # Remove the per chromosome list of genes
 for c in {1..22} X Y MT; do
@@ -69,7 +72,7 @@ done
 # Reheader the other cis files
 echo "Reheading the cis results:"
 for c in {1..22}; do
-    echo "Chromsome ${c}"
+    echo "Reheading results for chromsome ${c}"
     # ACAT - all
     echo -e "Gene\tACAT_p\ttop_Marker_ID\ttop_p" >> ${catdir}/${c}_test.tsv
     cat ${catdir}/chr${c}_nPC_${n_expr_pcs}_ACAT_all.txt >> ${catdir}/${c}_test.tsv && mv ${catdir}/${c}_test.tsv ${catdir}/chr${c}_nPC_${n_expr_pcs}_ACAT_all.txt
@@ -82,20 +85,23 @@ for c in {1..22}; do
 done
 
 # Make a directory for these and move them
+echo "Moving cis files"
 mkdir -p ${catdir}/cis
 mv ${catdir}/*.txt ${catdir}/cis
 
 # Also compress the per-chromosome summary stats
 for c in {1..22}; do
-    echo ${c}
+    echo "Compressing results for chromsome ${c}"
     gzip ${catdir}/cis/chr${c}_nPC_${n_expr_pcs}.txt
 done
 
 # Re-header the conditional file
+echo "Reheading the conditional file"
 echo -e "CHR\tPOS\tMarkerID\tAllele1\tAllele2\tAC_Allele2\tAF_Allele2\tMissingRate\tBETA\tSE\tTstat\tvar\tp.value\tp.value.NA\tIs.SPA\tBETA_c\tSE_c\tTstat_c\tvar_c\tp.value_c\tp.value.NA_c\tN\tqvalues_c\tlfdr_c\tround\tGene" >> ${catdir}/conditional/temp.tsv
 cat ${catdir}/conditional/all_conditionally_independent_effects.txt >> ${catdir}/conditional/temp.tsv && mv ${catdir}/conditional/temp.tsv ${catdir}/conditional/all_conditionally_independent_effects.txt
 
 # Remove unwanted conditional files
+echo "Removing temporary files"
 rm ${catdir}/conditional/ENSG*
 rm ${catdir}/conditional/chr*
 
@@ -104,14 +110,16 @@ rm -r ${catdir}/per_gene_input_files
 
 # Compress the trans-eQTL summary stats
 for c in {1..22}; do
-    echo ${c}
+    echo "Compressing trans results for chromsome ${c}"
     gzip ${catdir}/trans/chr${c}_nPC_${n_expr_pcs}_trans_by_cis_no_cis.txt
 done
 
 # Tidy up the genotypes
+echo "Removing the unneccessary genotype file"
 rm ${general_file_dir}/genotypes/plink_genotypes_cis_${level}*
 
 # Tidy up the last remaining files
+echo "Removing last remaining files"
 rm ${catdir}/*size_temp
 rm ${catdir}/trans/*__npc*
 rm ${catdir}/cis/*_temp_independent.txt
