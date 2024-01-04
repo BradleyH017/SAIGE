@@ -30,6 +30,7 @@ from matplotlib.colors import TwoSlopeNorm
 import plotly.graph_objects as go
 from matplotlib.lines import Line2D
 import argparse
+print("Loaded libraries")
 
 # Define genotype replacement functions
 def replace_with_ref_nonref(value, ref, nonref):
@@ -73,14 +74,6 @@ def parse_options():
             required=True,
             help=''
         )
-
-    parser.add_argument(
-            '-pbd', '--pb_dir',
-            action='store',
-            dest='pb_dir',
-            required=True,
-            help=''
-        )
     
     parser.add_argument(
             '-ph', '--phenotype__file',
@@ -97,13 +90,23 @@ def parse_options():
             required=True,
             help=''
         )
+    
+    parser.add_argument(
+            '-nx', '--n_expr_pcs',
+            action='store',
+            dest='n_expr_pcs',
+            required=True,
+            help=''
+        )
+    
+    return parser.parse_args()
 
 def main():
     print("Inheriting running options")
     inherited_options = parse_options()
     catdir = inherited_options.catdir
-    # catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/Dendritic_cell"
-    chromosomes = inherited_options.catdir # Will be something like "1-5", so divide this by '-'
+    # catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/Tuft_cell"
+    chromosomes = inherited_options.chromosomes # Will be something like "1-5", so divide this by '-'
     start, end = map(int, chromosomes.split('-'))
     chr = range(start, end + 1)
     formatted_range = chromosomes
@@ -121,11 +124,24 @@ def main():
     # n_expr_pcs="5"
     phenotype_file=inherited_options.phenotype__file
     # phenotype_file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
-    
+
+    # Print the options for running this script
+    import logging
+    logging.info(f"catdir: {catdir}")
+    logging.info(f"chromosomes: {chromosomes}")
+    logging.info(f"general_file_dir: {general_file_dir}")
+    logging.info(f"pb_dir: {pb_dir}")
+    logging.info(f"phenotype__file: {phenotype_file}")
+    logging.info(f"n_expr_pcs: {n_expr_pcs}")
+
     # Prep the outdir if not already
-    outdir=f"{catdir}/plots"
+    outdir=f"{catdir}/summary_plots"
     if os.path.exists(outdir) == False:
         os.makedirs(outdir, exist_ok=True)
+
+    tabdir=f"{catdir}/summary_tables"
+    if os.path.exists(tabdir) == False:
+        os.makedirs(tabdir, exist_ok=True)
 
     # Start with a summary of the cis-eQTL analysis for the choromosomes specified
     print("~~~~~~~~~~~~~~~~~~ Summarising the cis-eQTL analysis ~~~~~~~~~~~~~~~~~~")
@@ -171,6 +187,9 @@ def main():
     obs_p = -np.log10(np.sort(obs))
     th_p = np.arange(1/float(n), 1 + (1/float(n)), 1/float(n))
     th_p = -np.log10(th_p)
+    if len(th_p) > len(obs_p):
+        # Truncate th_p to the same length as obs_p
+        th_p = th_p[:len(obs_p)]
     # Scatter plot with small blue points
     plt.scatter(th_p, obs_p, color='blue', s=2)
     # Red dashed line
@@ -391,7 +410,8 @@ def main():
 
     # Plotting the overlap of genes detected by each method at different resolutions
     pb_res_min_qvalue_rows.rename(columns={"phenotype_id": "Gene"}, inplace=True)
-    merged_qvalue = sc_res_min_qvalue_rows.merge(pb_res_min_qvalue_rows, on="Gene", suffixes=('_saige', '_tensor')) 
+    merged_qvalue = sc_res_min_qvalue_rows.merge(pb_res_min_qvalue_rows, on="Gene", suffixes=('_saige', '_tensor'))
+    merged_qvalue.to_csv(f"{tabdir}/min_qvalue_per_common_gene_saige_tensor_{formatted_range}.txt", sep = "\t", index=False) 
     cutoffs = [1, 0.05]
     for c in cutoffs:
         sub = merged_qvalue[(merged_qvalue['qvalue_within_gene_saige'] < c) | (merged_qvalue['qvalue_within_gene_tensor'] < c)]
@@ -511,156 +531,153 @@ def main():
     adata = adata[adata.obs[aggregate_on] == level]
 
     # Load genotypes and subset for those with significant (across genes) effects in one or both
-saige_only_gene = sc_res_min_qvalue_rows[sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
-tensor_hit = pb_res_min_qvalue_rows[pb_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
-saige_hit_only = saige_hit[saige_hit['Gene'].isin(saige_hit.loc[~saige_hit['Gene'].isin(tensor_hit['Gene']), 'Gene'].values)]
-saige_hit_only=saige_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
-tensor_hit_only = tensor_hit[tensor_hit['Gene'].isin(tensor_hit.loc[~tensor_hit['Gene'].isin(saige_hit['Gene']), 'Gene'].values)]
-tensor_hit_only=tensor_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
-want_genes = np.concatenate([tensor_hit_only['Gene'].values, saige_hit_only['Gene'].values])
-want_vars = np.concatenate([tensor_hit_only['variant_id'].values, saige_hit_only['MarkerID'].values])
-G = read_plink1_bin(f"{geno_dir}/plink_genotypes_ordered.bed")
-G_id = pd.read_csv(f"{geno_dir}/plink_genotypes_ordered.bim", sep = "\t", header=None)
-G['variant'] = G_id.iloc[:,1]
-G = G[G.sample.isin(adata.obs.Corrected_genotyping_ID)]
-G = G[:,G['variant'].isin(want_vars)]
+    saige_only_gene = sc_res_min_qvalue_rows[sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
+    tensor_hit = pb_res_min_qvalue_rows[pb_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
+    saige_hit_only = saige_only_gene[saige_only_gene['Gene'].isin(saige_only_gene.loc[~saige_only_gene['Gene'].isin(tensor_hit['Gene']), 'Gene'].values)]
+    saige_hit_only=saige_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
+    tensor_hit_only = tensor_hit[tensor_hit['Gene'].isin(tensor_hit.loc[~tensor_hit['Gene'].isin(saige_hit_only['Gene']), 'Gene'].values)]
+    tensor_hit_only=tensor_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
+    want_genes = np.concatenate([tensor_hit_only['Gene'].values, saige_hit_only['Gene'].values])
+    want_vars = np.concatenate([tensor_hit_only['variant_id'].values, saige_hit_only['MarkerID'].values])
+    G = read_plink1_bin(f"{geno_dir}/plink_genotypes_ordered.bed")
+    G_id = pd.read_csv(f"{geno_dir}/plink_genotypes_ordered.bim", sep = "\t", header=None)
+    G['variant'] = G_id.iloc[:,1]
+    G = G[G.sample.isin(adata.obs.Corrected_genotyping_ID)]
+    G = G[:,G['variant'].isin(want_vars)]
 
-# Plot the expression of these genes
-genotype_df = G.to_dataframe(name='genotype').reset_index()
-genotype_df = genotype_df.pivot(index='sample', columns='variant', values='genotype')
-expression_df = pd.DataFrame.sparse.from_spmatrix(adata.X)
-expression_df.columns=adata.var.index.values
-expression_df.index = adata.obs.index.values
-expression_df = expression_df.iloc[:,expression_df.columns.isin(want_genes)]
-genotype_df = genotype_df.reset_index()
-genotype_df = genotype_df.rename(columns={'sample': 'Corrected_genotyping_ID'})
-temp = adata.obs
-temp = temp.reset_index()
-genotype_df = genotype_df.merge(temp[["index", "Corrected_genotyping_ID"]], on="Corrected_genotyping_ID")
-genotype_df = genotype_df.set_index("index")
-expression_df = expression_df.merge(genotype_df, left_index=True, right_index=True)
-expression_df['sample'] = expression_df.index.str.split('-').str[2]
-expression_df['sample'] = expression_df['sample'].astype(str)
+    # Plot the expression of these genes
+    genotype_df = G.to_dataframe(name='genotype').reset_index()
+    genotype_df = genotype_df.pivot(index='sample', columns='variant', values='genotype')
+    expression_df = pd.DataFrame.sparse.from_spmatrix(adata.X)
+    expression_df.columns=adata.var.index.values
+    expression_df.index = adata.obs.index.values
+    expression_df = expression_df.iloc[:,expression_df.columns.isin(want_genes)]
+    genotype_df = genotype_df.reset_index()
+    genotype_df = genotype_df.rename(columns={'sample': 'Corrected_genotyping_ID'})
+    temp = adata.obs
+    temp = temp.reset_index()
+    genotype_df = genotype_df.merge(temp[["index", "Corrected_genotyping_ID"]], on="Corrected_genotyping_ID")
+    genotype_df = genotype_df.set_index("index")
+    expression_df = expression_df.merge(genotype_df, left_index=True, right_index=True)
+    expression_df['sample'] = expression_df.index.str.split('-').str[2]
+    expression_df['sample'] = expression_df['sample'].astype(str)
 
-# Plot some (saige hit only first)
-for r, row in saige_hit_only[:5].iterrows():
-    try:
-        marker = row['MarkerID']
-        gene = row['Gene']
-        print(f"Plotting association between {marker} and {gene}")
-        ref = row['Allele1']
-        nonref = row['Allele2']
-        # Create a new DataFrame to store the data for the violin plot
-        violin_df = expression_df.copy()
-        order = ['2.0', '1.0', '0.0'] # order x axis
-        violin_df[marker] = violin_df[marker].astype('str')
-        values_series = pd.Series(violin_df[marker].values.flatten())
-        replace_vectorized = np.vectorize(lambda x: replace_with_ref_nonref(x, ref, nonref))
-        violin_df['use_geno'] = replace_vectorized(values_series)
-        violin_df = violin_df[violin_df['use_geno'].notna()]
-        # Calculate marker counts
-        marker_counts = violin_df['use_geno'].value_counts().to_dict()
-        # Modify the 'X_Axis' column to include the desired labels
-        violin_df['X_Axis'] = (
-            violin_df['use_geno'].astype(str) + '\n(' +
-            violin_df['use_geno'].map(lambda x: str(marker_counts[x])) + ' cells,\n' +
-            violin_df.groupby('use_geno')['sample'].transform('nunique').astype(str) + ' samples)'
-        )
-        # Remove the nan
-        violin_df = violin_df[~violin_df['X_Axis'].str.contains('nan')]
-        # Sort 'X_Axis' labels with custom sorting function
-        plot_levels = np.unique(violin_df['X_Axis'])
-        substring_ref_2 = ref * 2
-        substring_ref_nonref = ref + nonref
-        substring_nonref_2 = nonref * 2
-        # Filter the plot_levels array for each category
-        plot_levels_ref_2 = [level for level in plot_levels if substring_ref_2 in level]
-        plot_levels_ref_nonref = [level for level in plot_levels if substring_ref_nonref in level]
-        plot_levels_nonref_2 = [level for level in plot_levels if substring_nonref_2 in level]
-        plot_levels_ordered = plot_levels_ref_2 + plot_levels_ref_nonref + plot_levels_nonref_2
-        fig, ax = plt.subplots()
-        violin_df[gene] = violin_df[gene].sparse.to_dense()
-        sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
-        sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
-        ax.set_xticklabels(plot_levels_ordered)
-        ## Add text
-        saige_beta=row['BETA']
-        saige_fdr=row['qvalue_within_gene']
-        tensor_beta=pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['slope'].values[0]
-        tensor_fdr = pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
-        text = f"SAIGE:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. TENSOR:{float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
-        ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
-        # Add options 
-        ax.set_xlabel(marker)
-        ax.set_ylabel(gene)
-        # save
-        plt.savefig(f"{outdir}/saige_only_cis_{marker}_{gene}_sns.png")
-        plt.clf()
-    except Exception as e:
-        # Print or log the error message
-        print(f"Error processing row {r}: {e}")
-
-
-# Plot some (tensor hit only first)
-for r, row in tensor_hit_only[:5].iterrows():
-    try:
-        marker = row['variant_id']
-        gene = row['Gene']
-        print(f"Plotting association between {marker} and {gene}")
-        ref = row['variant_id'].split(":")[-2]
-        nonref = row['variant_id'].split(":")[-1]
-        # Create a new DataFrame to store the data for the violin plot
-        violin_df = expression_df.copy()
-        order = ['2.0', '1.0', '0.0'] # order x axis
-        violin_df[marker] = violin_df[marker].astype('str')
-        values_series = pd.Series(violin_df[marker].values.flatten())
-        replace_vectorized = np.vectorize(lambda x: replace_with_ref_nonref(x, ref, nonref))
-        violin_df['use_geno'] = replace_vectorized(values_series)
-        violin_df = violin_df[violin_df['use_geno'].notna()]
-        # Calculate marker counts
-        marker_counts = violin_df['use_geno'].value_counts().to_dict()
-        # Modify the 'X_Axis' column to include the desired labels
-        violin_df['X_Axis'] = (
-            violin_df['use_geno'].astype(str) + '\n(' +
-            violin_df['use_geno'].map(lambda x: str(marker_counts[x])) + ' cells,\n' +
-            violin_df.groupby('use_geno')['sample'].transform('nunique').astype(str) + ' samples)'
-        )
-        # Remove the nan
-        violin_df = violin_df[~violin_df['X_Axis'].str.contains('nan')]
-        # Sort 'X_Axis' labels with custom sorting function
-        plot_levels = np.unique(violin_df['X_Axis'])
-        substring_ref_2 = ref * 2
-        substring_ref_nonref = ref + nonref
-        substring_nonref_2 = nonref * 2
-        # Filter the plot_levels array for each category
-        plot_levels_ref_2 = [level for level in plot_levels if substring_ref_2 in level]
-        plot_levels_ref_nonref = [level for level in plot_levels if substring_ref_nonref in level]
-        plot_levels_nonref_2 = [level for level in plot_levels if substring_nonref_2 in level]
-        plot_levels_ordered = plot_levels_ref_2 + plot_levels_ref_nonref + plot_levels_nonref_2
-        fig, ax = plt.subplots()
-        violin_df[gene] = violin_df[gene].sparse.to_dense()
-        sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
-        sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
-        ax.set_xticklabels(plot_levels_ordered)
-        ## Add text
-        saige_beta=row['slope']
-        saige_fdr=row['qvalue_within_gene']
-        tensor_beta=sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['BETA'].values[0]
-        tensor_fdr = sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
-        text = f"TENSOR:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. SAIGE:beta={float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
-        ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
-        # Add options 
-        ax.set_xlabel(marker)
-        ax.set_ylabel(gene)
-        # save
-        plt.savefig(f"{outdir}/tensor_only_cis_{marker}_{gene}_sns.png")
-        plt.clf()
-    except Exception as e:
-        # Print or log the error message
-        print(f"Error processing row {r}: {e}")
+    # Plot some (saige hit only first)
+    for r, row in saige_hit_only[:5].iterrows():
+        try:
+            marker = row['MarkerID']
+            gene = row['Gene']
+            print(f"Plotting association between {marker} and {gene}")
+            ref = row['Allele1']
+            nonref = row['Allele2']
+            # Create a new DataFrame to store the data for the violin plot
+            violin_df = expression_df.copy()
+            order = ['2.0', '1.0', '0.0'] # order x axis
+            violin_df[marker] = violin_df[marker].astype('str')
+            values_series = pd.Series(violin_df[marker].values.flatten())
+            replace_vectorized = np.vectorize(lambda x: replace_with_ref_nonref(x, ref, nonref))
+            violin_df['use_geno'] = replace_vectorized(values_series)
+            violin_df = violin_df[violin_df['use_geno'].notna()]
+            # Calculate marker counts
+            marker_counts = violin_df['use_geno'].value_counts().to_dict()
+            # Modify the 'X_Axis' column to include the desired labels
+            violin_df['X_Axis'] = (
+                violin_df['use_geno'].astype(str) + '\n(' +
+                violin_df['use_geno'].map(lambda x: str(marker_counts[x])) + ' cells,\n' +
+                violin_df.groupby('use_geno')['sample'].transform('nunique').astype(str) + ' samples)'
+            )
+            # Remove the nan
+            violin_df = violin_df[~violin_df['X_Axis'].str.contains('nan')]
+            # Sort 'X_Axis' labels with custom sorting function
+            plot_levels = np.unique(violin_df['X_Axis'])
+            substring_ref_2 = ref * 2
+            substring_ref_nonref = ref + nonref
+            substring_nonref_2 = nonref * 2
+            # Filter the plot_levels array for each category
+            plot_levels_ref_2 = [level for level in plot_levels if substring_ref_2 in level]
+            plot_levels_ref_nonref = [level for level in plot_levels if substring_ref_nonref in level]
+            plot_levels_nonref_2 = [level for level in plot_levels if substring_nonref_2 in level]
+            plot_levels_ordered = plot_levels_ref_2 + plot_levels_ref_nonref + plot_levels_nonref_2
+            fig, ax = plt.subplots()
+            violin_df[gene] = violin_df[gene].sparse.to_dense()
+            sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
+            sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
+            ax.set_xticklabels(plot_levels_ordered)
+            ## Add text
+            saige_beta=row['BETA']
+            saige_fdr=row['qvalue_within_gene']
+            tensor_beta=pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['slope'].values[0]
+            tensor_fdr = pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
+            text = f"SAIGE:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. TENSOR:{float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
+            ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
+            # Add options 
+            ax.set_xlabel(marker)
+            ax.set_ylabel(gene)
+            # save
+            plt.savefig(f"{outdir}/saige_only_cis_{marker}_{gene}_sns.png")
+            plt.clf()
+        except Exception as e:
+            # Print or log the error message
+            print(f"Error processing row {r}: {e}")
 
 
-
+    # Plot some (tensor hit only first)
+    for r, row in tensor_hit_only[:5].iterrows():
+        try:
+            marker = row['variant_id']
+            gene = row['Gene']
+            print(f"Plotting association between {marker} and {gene}")
+            ref = row['variant_id'].split(":")[-2]
+            nonref = row['variant_id'].split(":")[-1]
+            # Create a new DataFrame to store the data for the violin plot
+            violin_df = expression_df.copy()
+            order = ['2.0', '1.0', '0.0'] # order x axis
+            violin_df[marker] = violin_df[marker].astype('str')
+            values_series = pd.Series(violin_df[marker].values.flatten())
+            replace_vectorized = np.vectorize(lambda x: replace_with_ref_nonref(x, ref, nonref))
+            violin_df['use_geno'] = replace_vectorized(values_series)
+            violin_df = violin_df[violin_df['use_geno'].notna()]
+            # Calculate marker counts
+            marker_counts = violin_df['use_geno'].value_counts().to_dict()
+            # Modify the 'X_Axis' column to include the desired labels
+            violin_df['X_Axis'] = (
+                violin_df['use_geno'].astype(str) + '\n(' +
+                violin_df['use_geno'].map(lambda x: str(marker_counts[x])) + ' cells,\n' +
+                violin_df.groupby('use_geno')['sample'].transform('nunique').astype(str) + ' samples)'
+            )
+            # Remove the nan
+            violin_df = violin_df[~violin_df['X_Axis'].str.contains('nan')]
+            # Sort 'X_Axis' labels with custom sorting function
+            plot_levels = np.unique(violin_df['X_Axis'])
+            substring_ref_2 = ref * 2
+            substring_ref_nonref = ref + nonref
+            substring_nonref_2 = nonref * 2
+            # Filter the plot_levels array for each category
+            plot_levels_ref_2 = [level for level in plot_levels if substring_ref_2 in level]
+            plot_levels_ref_nonref = [level for level in plot_levels if substring_ref_nonref in level]
+            plot_levels_nonref_2 = [level for level in plot_levels if substring_nonref_2 in level]
+            plot_levels_ordered = plot_levels_ref_2 + plot_levels_ref_nonref + plot_levels_nonref_2
+            fig, ax = plt.subplots()
+            violin_df[gene] = violin_df[gene].sparse.to_dense()
+            sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
+            sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
+            ax.set_xticklabels(plot_levels_ordered)
+            ## Add text
+            saige_beta=row['slope']
+            saige_fdr=row['qvalue_within_gene']
+            tensor_beta=sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['BETA'].values[0]
+            tensor_fdr = sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
+            text = f"TENSOR:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. SAIGE:beta={float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
+            ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
+            # Add options 
+            ax.set_xlabel(marker)
+            ax.set_ylabel(gene)
+            # save
+            plt.savefig(f"{outdir}/tensor_only_cis_{marker}_{gene}_sns.png")
+            plt.clf()
+        except Exception as e:
+            # Print or log the error message
+            print(f"Error processing row {r}: {e}")
 
     # Trans-analysis
     print("~~~~~~~~~~~~~~~~~~ Summarising the trans-eQTL analysis ~~~~~~~~~~~~~~~~~~")
@@ -750,8 +767,8 @@ for r, row in tensor_hit_only[:5].iterrows():
     fig.savefig(f"{outdir}/trans_circos_plot.png")
         
     # Load the genotypes of these results
-    G = read_plink1_bin(f"{geno_dir}/plink_genotypes_cis_{level}.bed")
-    G_id = pd.read_csv(f"{geno_dir}/plink_genotypes_cis_{level}.bim", sep = "\t", header=None)
+    G = read_plink1_bin(f"{geno_dir}/plink_genotypes_ordered.bed")
+    G_id = pd.read_csv(f"{geno_dir}/plink_genotypes_ordered.bim", sep = "\t", header=None)
     G['variant'] = G_id.iloc[:,1]
     G = G[G.sample.isin(adata.obs.Corrected_genotyping_ID)]
     G = G[:,G['variant'].isin(res_plot.MarkerID)]
@@ -853,7 +870,7 @@ for r, row in tensor_hit_only[:5].iterrows():
     subexprmeans = pd.DataFrame({'Gene': subexprmeans.index, 'Mean': subexprmeans.values})
     res = res.merge(subexprmeans, on="Gene")
     res['fdr_less_0.01'] = np.where(res['bonf_qvalue_across_genes'] < 0.01, 'Yes', 'No')
-    res['MAF'] = np.where(res['AF_Allele2'] > 0.5, 1 - res['AF_Allele2'], res['AF_Allele2'])
+    res['MAF'] = np.where(res['AF_Allele2'].astype('float') > 0.5, 1 - res['AF_Allele2'].astype('float'), res['AF_Allele2'].astype('float'))
     res['logMean'] = np.log10(res['Mean'])
 
     plt.figure(figsize=(8, 6))
@@ -882,14 +899,14 @@ for r, row in tensor_hit_only[:5].iterrows():
     plt.clf()
 
     # How does beta value vary with the MAF and gene expression? 
-    res['absBETA'] = np.abs(res['BETA'])
+    res['absBETA'] = np.abs(res['BETA'].astype('float'))
     plt.figure(figsize=(8, 6))
     fig,ax = plt.subplots(figsize=(8,6))
-    sns.scatterplot(x='MAF', y='logMean', data=res, hue="absBETA", palette="viridis", alpha=0.8)
+    sns.scatterplot(x='MAF', y='absBETA', data=res, palette="viridis", alpha=0.8)
     plt.xlabel('MAF')
-    plt.ylabel('log10(Mean expression of gene)')
+    plt.ylabel('absolute effect size (beta)')
     plt.xlim(0, 0.5)
-    plt.title(f"Detection of trans-eQTLs (MAF vs gene expression), colored by BETA")
+    plt.title(f"Detection of trans-eQTLs (MAF vs absolute beta), colored by Mean expression")
     plt.savefig(f"{outdir}/trans_detection_MAF_expr_beta_py.png")
     plt.clf()
 
