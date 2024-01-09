@@ -414,30 +414,31 @@ def main():
     merged_qvalue.to_csv(f"{tabdir}/min_qvalue_per_common_gene_saige_tensor_{formatted_range}.txt", sep = "\t", index=False) 
     cutoffs = [1, 0.05]
     for c in cutoffs:
-        sub = merged_qvalue[(merged_qvalue['qvalue_within_gene_saige'] < c) | (merged_qvalue['qvalue_within_gene_tensor'] < c)]
+        sub = merged_qvalue[(merged_qvalue['qvalue_across_genes_saige'] < c) | (merged_qvalue['qvalue_across_genes_tensor'] < c)]
         all_test = sub.shape[0]
-        nsaige_win = sub[sub['qvalue_within_gene_saige'] < sub['qvalue_within_gene_tensor']].shape[0]
+        nsaige_win = sub[sub['qvalue_across_genes_saige'] < sub['qvalue_across_genes_tensor']].shape[0]
         perc_saige_win = "{:.2f}".format(100*(nsaige_win/all_test))
-        ntensor_win = sub[sub['qvalue_within_gene_saige'] > sub['qvalue_within_gene_tensor']].shape[0]
+        ntensor_win = sub[sub['qvalue_across_genes_saige'] > sub['qvalue_across_genes_tensor']].shape[0]
         perc_tensor_win = "{:.2f}".format(100*(ntensor_win/all_test))
-        print(f"At a p-value threshold of {c}: Out of a possible {all_test} tests, SAIGE wins {nsaige_win} times ({perc_saige_win}%), Tensor wins {ntensor_win} times ({perc_tensor_win}%)")
+        print(f"At a p-value threshold of {c} across genes: Out of a possible {all_test} tests, SAIGE wins {nsaige_win} times ({perc_saige_win}%), Tensor wins {ntensor_win} times ({perc_tensor_win}%)")
 
-    # Plot the overlap of most interesting results
-    sub = merged_qvalue[(merged_qvalue['qvalue_within_gene_saige'] < 0.05) | (merged_qvalue['qvalue_within_gene_tensor'] < 0.05)]
-    saige_hits = set(sub[sub['qvalue_within_gene_saige'] < 0.05]['Gene'].tolist())
-    tensor_hits = set(sub[sub['qvalue_within_gene_tensor'] < 0.05]['Gene'].tolist())
+    # Plot the effect across genes on a venn
+    sub = merged_qvalue[(merged_qvalue['qvalue_across_genes_saige'] < 0.05) | (merged_qvalue['qvalue_across_genes_tensor'] < 0.05)]
+    saige_hits = set(sub[sub['qvalue_across_genes_saige'] < 0.05]['Gene'].tolist())
+    tensor_hits = set(sub[sub['qvalue_across_genes_tensor'] < 0.05]['Gene'].tolist())
     venn_labels = {'100': 'SAIGE-QTL', '010': 'TensorQTL', '110': 'Intersection'}
 
     plt.figure(figsize=(8, 6))
     venn2(subsets=[saige_hits, tensor_hits], set_labels=('SAIGE-QTL', 'TensorQTL'), set_colors=('skyblue', 'lightgreen'), alpha=0.7)
-    plt.savefig(f"{outdir}/venn_saige_tensor_fdr_0.05_chr{formatted_range}_py.png")
+    plt.savefig(f"{outdir}/venn_saige_tensor_fdr_0.0_across_genes_chr{formatted_range}_py.png")
     plt.clf()
 
     # Also plot the correlation of betas/p-values for these significant effects - if only significant in one condition, plot one colour and another if the opposite
-    max_effect = max([np.abs(max(sub['slope'])), np.abs(max(sub['BETA']))])
+    sub = merged_qvalue[(merged_qvalue['qvalue_across_genes_saige'] < 0.05) | (merged_qvalue['qvalue_across_genes_tensor'] < 0.05)]
+    max_effect = max([np.abs(max(sub['slope'].astype('float'))), np.abs(max(sub['BETA'].astype('float')))])
     sub['exclusivity'] = 'both'  # Default value for all rows
-    sub.loc[(sub['qvalue_within_gene_saige'] < 0.05) & (sub['qvalue_within_gene_tensor'] > 0.05), 'exclusivity'] = 'SAIGE_only'
-    sub.loc[(sub['qvalue_within_gene_saige'] > 0.05) & (sub['qvalue_within_gene_tensor'] < 0.05), 'exclusivity'] = 'Tensor_only'
+    sub.loc[(sub['qvalue_across_genes_saige'] < 0.05) & (sub['qvalue_across_genes_tensor'] > 0.05), 'exclusivity'] = 'SAIGE_only'
+    sub.loc[(sub['qvalue_across_genes_saige'] > 0.05) & (sub['qvalue_across_genes_tensor'] < 0.05), 'exclusivity'] = 'Tensor_only'
     plt.figure(figsize=(8, 6))
     fig,ax = plt.subplots(figsize=(8,6))
     sns.scatterplot(x='slope', y='BETA', hue='exclusivity', data=sub)
@@ -531,13 +532,11 @@ def main():
     adata = adata[adata.obs[aggregate_on] == level]
 
     # Load genotypes and subset for those with significant (across genes) effects in one or both
-    saige_only_gene = sc_res_min_qvalue_rows[sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
-    tensor_hit = pb_res_min_qvalue_rows[pb_res_min_qvalue_rows['qvalue_across_genes'] < 0.05].sort_values(by='qvalue_across_genes', ascending=True)
-    saige_hit_only = saige_only_gene[saige_only_gene['Gene'].isin(saige_only_gene.loc[~saige_only_gene['Gene'].isin(tensor_hit['Gene']), 'Gene'].values)]
-    saige_hit_only=saige_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
-    tensor_hit_only = tensor_hit[tensor_hit['Gene'].isin(tensor_hit.loc[~tensor_hit['Gene'].isin(saige_hit_only['Gene']), 'Gene'].values)]
-    tensor_hit_only=tensor_hit_only.sort_values(by='qvalue_across_genes', ascending=True)
-    want_genes = np.concatenate([tensor_hit_only['Gene'].values, saige_hit_only['Gene'].values])
+    saige_hit_only = merged_qvalue[(merged_qvalue['qvalue_across_genes_saige'] < 0.05) & (merged_qvalue['qvalue_across_genes_tensor'] > 0.05)].sort_values(by='qvalue_across_genes_saige', ascending=True)
+    saige_hit_genes = saige_hit_only['Gene'].values
+    tensor_hit_only = merged_qvalue[(merged_qvalue['qvalue_across_genes_tensor'] < 0.05) & (merged_qvalue['qvalue_across_genes_saige'] > 0.05)].sort_values(by='qvalue_across_genes_tensor', ascending=True).sort_values(by='qvalue_across_genes_tensor', ascending=True)
+    tensor_hit_genes = tensor_hit_only['Gene'].values
+    want_genes = np.concatenate([tensor_hit_genes, saige_hit_genes])
     want_vars = np.concatenate([tensor_hit_only['variant_id'].values, saige_hit_only['MarkerID'].values])
     G = read_plink1_bin(f"{geno_dir}/plink_genotypes_ordered.bed")
     G_id = pd.read_csv(f"{geno_dir}/plink_genotypes_ordered.bim", sep = "\t", header=None)
@@ -603,12 +602,12 @@ def main():
             sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
             sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
             ax.set_xticklabels(plot_levels_ordered)
-            ## Add text
+            ## Add text (NOTE: The pvalue plotted for the opposite test is not neccessarily from the same variant, but is the strongest assoc)
             saige_beta=row['BETA']
-            saige_fdr=row['qvalue_within_gene']
-            tensor_beta=pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['slope'].values[0]
-            tensor_fdr = pb_res[pb_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
-            text = f"SAIGE:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. TENSOR:{float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
+            saige_fdr=row['qvalue_across_genes_saige']
+            tensor_beta=row['slope']
+            tensor_fdr = row['qvalue_across_genes_tensor']
+            text = f"SAIGE:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. TENSOR (best assoc):{float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
             ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
             # Add options 
             ax.set_xlabel(marker)
@@ -663,11 +662,11 @@ def main():
             sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
             ax.set_xticklabels(plot_levels_ordered)
             ## Add text
-            saige_beta=row['slope']
-            saige_fdr=row['qvalue_within_gene']
-            tensor_beta=sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['BETA'].values[0]
-            tensor_fdr = sc_res[sc_res['variant_phenotype'] == row['variant_phenotype']]['qvalue_within_gene'].values[0]
-            text = f"TENSOR:beta = {float(saige_beta):.2f}, FDR={saige_fdr:.2e}. SAIGE:beta={float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}"
+            tensor_beta=row['slope']
+            tensor_fdr=row['qvalue_across_genes_tensor']
+            saige_beta=row['BETA']
+            saige_fdr=row['qvalue_across_genes_saige']
+            text = f"TENSOR:beta = {float(tensor_beta):.2f}, FDR={tensor_fdr:.2e}. SAIGE (best assoc):beta={float(saige_beta):.2f}, FDR={saige_fdr:.2e}"
             ax.text(1, 1.1 * ax.get_ylim()[1], text, ha='center', va='bottom')
             # Add options 
             ax.set_xlabel(marker)
@@ -683,6 +682,9 @@ def main():
     print("~~~~~~~~~~~~~~~~~~ Summarising the trans-eQTL analysis ~~~~~~~~~~~~~~~~~~")
     print("Loading in the data - all chromosomes")
     res = pd.read_csv(f"{catdir}/trans/all_nPC_{str(n_expr_pcs)}_trans_by_cis_no_cis_bonf.txt", sep = "\t")
+
+    # Subset for the trans hits on genes tested by the pseudo-bulk analyses
+    res = res[res['Gene'].isin(merged_qvalue['Gene'])]
 
     # Grab the top 5 and plot their trans-effects
     res_sig = res[res['bonf_qvalue_across_genes'] < 0.01]
@@ -829,7 +831,11 @@ def main():
             plot_levels_ordered = plot_levels_ref_2 + plot_levels_ref_nonref + plot_levels_nonref_2
             fig, ax = plt.subplots()
             violin_df[gene] = violin_df[gene].sparse.to_dense()
-            sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
+            if len(plot_levels_ordered) != len(order):
+                sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=[2.0, 1.0], ax=ax)
+            else:
+                sns.violinplot(x=violin_df[marker], y=violin_df[gene], order=order, ax=ax)
+            #
             sns.stripplot(x=violin_df[marker], y=violin_df[gene], color='black', size=5, order=order, ax=ax, jitter=True)
             ax.set_xticklabels(plot_levels_ordered)
             ## Add text
@@ -843,9 +849,12 @@ def main():
             # save
             plt.savefig(f"{outdir}/trans_{marker}_{gene}_trans_sns.png")
             plt.clf()
+        #
         except Exception as e:
             # Print or log the error message
             print(f"Error processing row {r}: {e}")
+
+
 
     # Have a look at the number of trans-eGenes per variant
     var_counts = res_sig['MarkerID'].value_counts()
@@ -869,7 +878,7 @@ def main():
     subexprmeans = subexpr.mean()
     subexprmeans = pd.DataFrame({'Gene': subexprmeans.index, 'Mean': subexprmeans.values})
     res = res.merge(subexprmeans, on="Gene")
-    res['fdr_less_0.01'] = np.where(res['bonf_qvalue_across_genes'] < 0.01, 'Yes', 'No')
+    res['fdr_less_0.05'] = np.where(res['bonf_qvalue_across_genes'] < 0.05, 'Yes', 'No')
     res['MAF'] = np.where(res['AF_Allele2'].astype('float') > 0.5, 1 - res['AF_Allele2'].astype('float'), res['AF_Allele2'].astype('float'))
     res['logMean'] = np.log10(res['Mean'])
 
@@ -922,7 +931,35 @@ def main():
     plt.savefig(f"{outdir}/trans_detection_significance_expr_py.png")
     plt.clf()
 
+    # Plot expression sparsity vs best beta/p-value
+    column_names = [col for col in expression_df.columns if col.startswith('ENSG')]
+    ensg_columns = expression_df[column_names]
+    ensg_columns = ensg_columns.iloc[:,ensg_columns.columns.isin(res['Gene'])]
+    is_zero = ensg_columns.eq(0)
+    dense_zero_counts = is_zero.sparse.to_dense()
+    gene_sparsity = pd.DataFrame(1-dense_zero_counts.sum()/dense_zero_counts.shape[0])
+    gene_sparsity.reset_index(inplace=True)
+    gene_sparsity.columns = ["Gene", "sparsity"]
+    res = res.merge(gene_sparsity, how="left", on="Gene")
 
+    plt.figure(figsize=(8, 6))
+    fig,ax = plt.subplots(figsize=(8,6))
+    sns.scatterplot(x='sparsity', y='log10_p.value', hue="fdr_less_0.05", data=res)
+    plt.xlabel('Gene sparsity (proportion non-zero counts)')
+    plt.ylabel('log10(p-value)')
+    plt.xlim(0, 1)
+    plt.savefig(f"{outdir}/trans_detection_significance_sparsity_py.png")
+    plt.clf()
+
+    # Beta
+    plt.figure(figsize=(8, 6))
+    fig,ax = plt.subplots(figsize=(8,6))
+    sns.scatterplot(x='sparsity', y='absBETA', hue="fdr_less_0.05", data=res)
+    plt.xlabel('Gene sparsity (proportion non-zero counts)')
+    plt.ylabel('absolute beta')
+    plt.xlim(0, 1)
+    plt.savefig(f"{outdir}/trans_detection_beta_sparsity_py.png")
+    plt.clf()
 
 if __name__ == '__main__':
     main()
