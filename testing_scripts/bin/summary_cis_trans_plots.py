@@ -425,6 +425,18 @@ def main():
     plt.savefig(f"{outdir}/absolute_effect_diff_vs_maf_pb_chr{formatted_range}_py.png")
     plt.clf()
 
+    # Plot a manhattan of absolute differences in betas
+    merged_sorted = merged.sort_values(by=['CHR', 'POS'])
+    merged_sorted['cumulative_position'] = merged_sorted.groupby('CHR').cumcount()
+    # Create the Manhattan plot
+    plt.figure(figsize=(15, 6))
+    sns.scatterplot(x='cumulative_position', y='absolute_diff_betas', hue='CHR', data=merged_sorted, palette='viridis', alpha=0.7)
+    # Add labels and title
+    plt.xlabel('Cumulative Position')
+    plt.ylabel('Absolute Difference Betas')
+    plt.title('Manhattan Plot')
+    plt.savefig(f"{outdir}/manhattan_abs_beta_exclusivity_chr{formatted_range}_py.png")
+    print("Plotted Manhattan")
 
     # Looking at the top hit per gene (maybe we greater a greater hit rate per gene as opposed to variants?) [Make sure dfs are corrected same way]
     sc_res = sc_res.rename_axis(index={sc_res.index.names[0]: None})
