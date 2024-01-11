@@ -105,7 +105,7 @@ def main():
     print("Inheriting running options")
     inherited_options = parse_options()
     catdir = inherited_options.catdir
-    # catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/Tuft_cell"
+    # catdir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles/label__machine/T_cell_CD8_1"
     chromosomes = inherited_options.chromosomes # Will be something like "1-5", so divide this by '-'
     start, end = map(int, chromosomes.split('-'))
     chr = range(start, end + 1)
@@ -308,6 +308,33 @@ def main():
 
     pb_res = pd.concat(pb_res, axis=0, ignore_index=True)
     pb_res['variant_phenotype'] = pb_res['variant_id'] + "_" + pb_res['phenotype_id']
+        
+    # Before filtering, FDR correct these reslts within and across genes
+    pb_res['qvalue_within_gene'] = pb_res.groupby('phenotype_id')['pval_nominal'].transform(lambda x: smt.multipletests(x, method='fdr_bh')[1])
+    pb_res_min_qvalue_rows = pb_res.loc[pb_res.groupby('phenotype_id')['qvalue_within_gene'].idxmin()]
+    pb_res_min_qvalue_rows['qvalue_across_genes'] = smt.multipletests(pb_res_min_qvalue_rows['qvalue_within_gene'], method='fdr_bh')[1]
+    sc_res['p.value'] = sc_res['p.value'].astype('float')
+    sc_res['qvalue_within_gene'] = sc_res.groupby('Gene')['p.value'].transform(lambda x: smt.multipletests(x, method='fdr_bh')[1])
+    sc_res_min_qvalue_rows = sc_res.loc[sc_res.groupby('Gene')['qvalue_within_gene'].idxmin()]
+    sc_res_min_qvalue_rows['qvalue_across_genes'] = smt.multipletests(sc_res_min_qvalue_rows['qvalue_within_gene'], method='fdr_bh')[1]
+    nsaige_sig = (sc_res_min_qvalue_rows['sc_res_min_qvalue_rows'] < 0.05).sum()
+    ntensor_sig = (sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05).sum()
+
+    # Plot the overlap of these results
+    saige_hits = set(sc_res_min_qvalue_rows[sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05]['Gene'].tolist())
+    tensor_hits = set(pb_res_min_qvalue_rows[pb_res_min_qvalue_rows['qvalue_across_genes'] < 0.05]['phenotype_id'].tolist())
+    venn_labels = {'100': 'SAIGE-QTL', '010': 'TensorQTL', '110': 'Intersection'}
+    plt.figure(figsize=(8, 6))
+    venn2(subsets=[saige_hits, tensor_hits], set_labels=('SAIGE-QTL', 'TensorQTL'), set_colors=('skyblue', 'lightgreen'), alpha=0.7)
+    plt.savefig(f"{outdir}/venn_saige_tensor_fdr_0.05_across_genes_all_not_intersection_chr{formatted_range}_py.png")
+    plt.clf()
+
+    # Save these datasets
+    sc_res_min_qvalue_rows.to_csv(f"{tabdir}/min_qvalue_per_gene_saige_all_tests_{formatted_range}.txt", sep = "\t", index=False) 
+    pb_res_min_qvalue_rows.to_csv(f"{tabdir}/min_qvalue_per_gene_saige_all_tests_{formatted_range}.txt", sep = "\t", index=False) 
+
+
+    ########### Now subset to the common tests to directly compare the models ###########
     # Find common tests
     common = set(pb_res['variant_phenotype']).intersection(sc_res['variant_phenotype'])
 
@@ -884,20 +911,20 @@ def main():
 
     plt.figure(figsize=(8, 6))
     fig,ax = plt.subplots(figsize=(8,6))
-    sns.scatterplot(x='MAF', y='logMean', data=res, hue="fdr_less_0.01")
+    sns.scatterplot(x='MAF', y='logMean', data=res, hue="fdr_less_0.05")
     plt.xlabel('MAF')
     plt.ylabel('log10(Mean expression of gene)')
     plt.xlim(0, 0.5)
-    plt.title(f"Detection of trans-eQTLs (MAF vs gene expression): FDR<0.01")
+    plt.title(f"Detection of trans-eQTLs (MAF vs gene expression): FDR<0.05")
     plt.savefig(f"{outdir}/trans_detection_MAF_expr_py.png")
     plt.clf()
 
     # Plot a distribution of MAF across significance thresholds
     plt.figure(figsize=(8, 6))
     fig,ax = plt.subplots(figsize=(8,6))
-    groups = np.unique(res['fdr_less_0.01'])
+    groups = np.unique(res['fdr_less_0.05'])
     for g in groups:
-        sns.distplot(res[res['fdr_less_0.01'] == g].MAF, hist=False, rug=True, label=g, kde_kws={'linewidth': 1.5})
+        sns.distplot(res[res['fdr_less_0.05'] == g].MAF, hist=False, rug=True, label=g, kde_kws={'linewidth': 1.5})
 
     plt.legend(bbox_to_anchor=(1.0, 1.0))
     plt.title('Distribution of trans-eQTL MAF across significance (FDR<0.01)')
