@@ -275,25 +275,25 @@ def main():
     plt.savefig(f"{outdir}/sig_genes_per_sig_variant_{formatted_range}_py.png")
     plt.clf()
 
-    ## Number of signals per gene
-    #print("The number of independent signals per gene")
-    #conditional = pd.read_csv(f"{catdir}/conditional/all_conditionally_independent_effects_q_less_0.05.txt", sep = "\t", index_col=None, header=None)
-    #condtional=conditional.iloc[:,:-2]
-    #names=['CHR', 'POS', 'MarkerID', 'Allele1', 'Allele2', 'AC_Allele2', 'AF_Allele2', 'MissingRate', 'BETA', 'SE', 'Tstat', 'var', 'p.value', 'p.value.NA', 'Is.SPA', 'BETA_c', 'SE_c', 'Tstat_c', 'var_c', 'p.value_c', 'p.value.NA_c', 'N', 'qvalues_c', 'lfdr_c', 'round', 'Gene']
-    #conditional.set_index('CHR', inplace=True)
-    #conditional = conditional[['POS'] + list(conditional.columns[:-1])]
+        ## Number of signals per gene
+        #print("The number of independent signals per gene")
+        #conditional = pd.read_csv(f"{catdir}/conditional/all_conditionally_independent_effects_q_less_0.05.txt", sep = "\t", index_col=None, header=None)
+        #condtional=conditional.iloc[:,:-2]
+        #names=['CHR', 'POS', 'MarkerID', 'Allele1', 'Allele2', 'AC_Allele2', 'AF_Allele2', 'MissingRate', 'BETA', 'SE', 'Tstat', 'var', 'p.value', 'p.value.NA', 'Is.SPA', 'BETA_c', 'SE_c', 'Tstat_c', 'var_c', 'p.value_c', 'p.value.NA_c', 'N', 'qvalues_c', 'lfdr_c', 'round', 'Gene']
+        #conditional.set_index('CHR', inplace=True)
+        #conditional = conditional[['POS'] + list(conditional.columns[:-1])]
 
-    #conditional = conditional[conditional['qvalues_c'] < 0.05]
-    #conditional_gene_counts = conditional['Gene'].value_counts()
-    #plt.figure(figsize=(8, 6))
-    #fig,ax = plt.subplots(figsize=(8,6))
-    #plt.hist(conditional_gene_counts, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
-    ## Add labels and title
-    #plt.xlabel('Number of independent signals hits per gene')
-    #plt.ylabel('Frequency')
-    #plt.title('Histogram of conditional hits per gene')
-    #plt.savefig(f"{outdir}/independent_effects_per_gene_{formatted_range}_py.png")
-    #plt.clf()
+        #conditional = conditional[conditional['qvalues_c'] < 0.05]
+        #conditional_gene_counts = conditional['Gene'].value_counts()
+        #plt.figure(figsize=(8, 6))
+        #fig,ax = plt.subplots(figsize=(8,6))
+        #plt.hist(conditional_gene_counts, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
+        ## Add labels and title
+        #plt.xlabel('Number of independent signals hits per gene')
+        #plt.ylabel('Frequency')
+        #plt.title('Histogram of conditional hits per gene')
+        #plt.savefig(f"{outdir}/independent_effects_per_gene_{formatted_range}_py.png")
+        #plt.clf()
 
     print("~~~~~~~~~~~~~~~~~~ Comparison of cis-eQTLs between SAIGE and TENSOR ~~~~~~~~~~~~~~~~~~")
     # Now compare this with the pseudo-bulk results
@@ -314,11 +314,12 @@ def main():
     pb_res_min_qvalue_rows = pb_res.loc[pb_res.groupby('phenotype_id')['qvalue_within_gene'].idxmin()]
     pb_res_min_qvalue_rows['qvalue_across_genes'] = smt.multipletests(pb_res_min_qvalue_rows['qvalue_within_gene'], method='fdr_bh')[1]
     sc_res['p.value'] = sc_res['p.value'].astype('float')
+    sc_res = sc_res.reset_index(drop=True)
     sc_res['qvalue_within_gene'] = sc_res.groupby('Gene')['p.value'].transform(lambda x: smt.multipletests(x, method='fdr_bh')[1])
     sc_res_min_qvalue_rows = sc_res.loc[sc_res.groupby('Gene')['qvalue_within_gene'].idxmin()]
     sc_res_min_qvalue_rows['qvalue_across_genes'] = smt.multipletests(sc_res_min_qvalue_rows['qvalue_within_gene'], method='fdr_bh')[1]
-    nsaige_sig = (sc_res_min_qvalue_rows['sc_res_min_qvalue_rows'] < 0.05).sum()
-    ntensor_sig = (sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05).sum()
+    nsaige_sig = (sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05).sum()
+    ntensor_sig = (pb_res_min_qvalue_rows['qvalue_across_genes'] < 0.05).sum()
 
     # Plot the overlap of these results
     saige_hits = set(sc_res_min_qvalue_rows[sc_res_min_qvalue_rows['qvalue_across_genes'] < 0.05]['Gene'].tolist())
@@ -429,8 +430,9 @@ def main():
     merged_sorted = merged.sort_values(by=['CHR', 'POS'])
     merged_sorted['cumulative_position'] = merged_sorted.groupby('CHR').cumcount()
     # Create the Manhattan plot
+    merged_sorted['CHR_number'] = merged_sorted['CHR'].astype('category')
     plt.figure(figsize=(15, 6))
-    sns.scatterplot(x='cumulative_position', y='absolute_diff_betas', hue='CHR', data=merged_sorted, palette='viridis', alpha=0.7)
+    sns.scatterplot(x='cumulative_position', y='absolute_diff_betas', hue='CHR_number', data=merged_sorted, palette='viridis', alpha=0.7)
     # Add labels and title
     plt.xlabel('Cumulative Position')
     plt.ylabel('Absolute Difference Betas')
