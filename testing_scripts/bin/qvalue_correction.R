@@ -52,9 +52,9 @@ to_save = res[res[,new_column] == min(res[,new_column]),]
 # If little significance, may get lots of results with the minimum qvalue
 if(nrow(to_save > 1)){
     to_save=res[res[,new_column] == min(res[,new_column]),]
-    # If have variants in complete LD - take the first
+    # If have variants in complete LD - take the one with the smallest original value
     if(nrow(to_save) > 1){
-        to_save = to_save[1,]
+        to_save = to_save[to_save[,column] == min(to_save[,column]),]
     }
 }
 
