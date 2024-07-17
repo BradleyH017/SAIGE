@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Extracting genes on chromosome one to allow iteration over these first
-level="Mac_resident_IL10RAplus"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -10,8 +10,8 @@ sample_id="sanger_sample_id"
 nperc=1
 condition_col="NULL"
 condition="NULL"
-covariates="age_imputed,sex,Keras:predicted_celltype_probability"
-covariates_cell="Keras:predicted_celltype_probability"
+covariates="age_imputed,sex,total_counts"
+covariates_cell="total_counts"
 expression_pca="true"
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true

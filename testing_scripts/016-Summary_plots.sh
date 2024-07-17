@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
-#### Cleaning and correcting p-values from the trans-by-cis analysis (across chromosome)
-# bsub -o logs/saige_trans_final-%J-output.log -e logs/saige_trans_final-%J-error.log -q long -G team152 -n 1 -M 40000 -a "memlimit=True" -R "select[mem>40000] rusage[mem=40000] span[hosts=1]" -J "saige_trans_final" < testing_scripts/014-trans_gather_correct_clean.sh 
-
+#### Generating summary plots on the cis- and trans-eQTL tests. This also includes a comparison against the pseudo-bulk results
+# bsub -o logs/saige_summary-%J-output.log -e logs/saige_summary-%J-error.log -q long -G team152 -n 1 -M 120000 -a "memlimit=True" -R "select[mem>120000] rusage[mem=120000] span[hosts=1]" -J "saige_summary" < testing_scripts/016-Summary_plots.sh 
 
 module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
@@ -34,21 +33,17 @@ if [ "$condition_col" != "NULL" ]; then
 else
         catdir=${general_file_dir}/${aggregate_on}/${level}
 fi
+echo "catdir is ${catdir}"
 
-# Load the optimum number of PCs
-optim_npcs_file=${catdir}/optim_nPCs_chr1.txt
+# Load n_expr_pcs
+optim_npcs_file=${catdir}/run_params/optim_nPCs_chr1.txt
 n_expr_pcs=$(<"$optim_npcs_file")
 
-# Gather these results
-echo "Gathering results for:"
-head -n 1 ${catdir}/trans/chr1_nPC_${n_expr_pcs}_trans_by_cis_no_cis_bonf.txt >> ${catdir}/trans/all_nPC_${n_expr_pcs}_trans_by_cis_no_cis_bonf.txt
-for c in {1..22}; do
-    echo $c
-    tail -n +2 ${catdir}/trans/chr${c}_nPC_${n_expr_pcs}_trans_by_cis_no_cis_bonf.txt >> ${catdir}/trans/all_nPC_${n_expr_pcs}_trans_by_cis_no_cis_bonf.txt
-done
-
-# Then perform qvalue correction of this file and overwrite
-echo "Performing qvalue correction across all genes"
-Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${catdir}/trans/all_nPC_${n_expr_pcs}_trans_by_cis_no_cis_bonf.txt -c "22" -n "bonf_qvalue_across_genes" -w "FALSE"
-
-# DONE!
+# Execute python scripts
+python ${repo_dir}/testing_scripts/bin/summary_cis_trans_plots.py \
+        --catdir $catdir \
+        --chromosomes_cis "1-22" \
+        --pb_dir "/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/results/Pseudobulk-TensorQTL/2023_09_28-TI_fr003-plate123" \
+        --phenotype__file $phenotype__file \
+        --n_expr_pcs $n_expr_pcs \
+        --general_file_dir $general_file_dir 

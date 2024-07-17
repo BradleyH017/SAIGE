@@ -7,7 +7,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Tuft_cell"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -87,7 +87,7 @@ done
 # Make a directory for these and move them
 echo "Moving cis files"
 mkdir -p ${catdir}/cis
-mv ${catdir}/*.txt ${catdir}/cis
+mv ${catdir}/chr*_nPC_${n_expr_pcs}.txt ${catdir}/cis
 
 # Also compress the per-chromosome summary stats
 for c in {1..22}; do
@@ -104,6 +104,7 @@ cat ${catdir}/conditional/all_conditionally_independent_effects.txt >> ${catdir}
 echo "Removing temporary files"
 rm ${catdir}/conditional/ENSG*
 rm ${catdir}/conditional/chr*
+rm ${catdir}/*temp_independent*
 
 # Remove the input files
 rm -r ${catdir}/per_gene_input_files

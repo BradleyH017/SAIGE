@@ -3,6 +3,7 @@
 __author__ = 'Bradley Harris'
 __date__ = '2023-11-23'
 __version__ = '0.0.1'
+
 ####### Python script to prepare input files for SAIGE
 
 # Load libraries
@@ -81,9 +82,9 @@ def main():
         )
 
     parser.add_argument(
-            '-g', '--genotype_pc__file',
+            '-g', '--genotype_pc_file',
             action='store',
-            dest='genotype_pc__file',
+            dest='genotype_pc_file',
             required=True,
             help=''
         )
@@ -161,19 +162,21 @@ def main():
             help=''
         )
     
-        parser.add_argument(
+    parser.add_argument(
             '-l', '--level',
             action='store',
             dest='level',
             required=True,
             help=''
         )
+        
+    print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
 
     # Load in the adata object
     adata = ad.read_h5ad(phenotype__file)
 
     # Load the genotype PCs
-    geno_pcs = pd.read_csv(genotype_pc__file, sep = "\t")
+    geno_pcs = pd.read_csv(genotype_pc_file, sep = "\t")
     geno_pcs = geno_pcs.set_index("IID")
     geno_pcs = geno_pcs.iloc[:,1:]
     geno_pcs.reset_index(inplace=True)
@@ -189,23 +192,18 @@ def main():
     covs_use=covariates.split(',')
 
 
-
-# For each category of the aggregation column, we want to:
-# 1. Filter for these cells
-# 2. Identify the genes with expression in > n% of cells
-# 3. Append this to the covariates (genotype PCs, Age, Sex encoded)
-# 4. Save this in a new directory, including the aggregation category
-cats = np.unique(adata.obs[aggregate_on])
-for c in cats:
-    print(f"~~~~~~~~~~~~Working on: {c}~~~~~~~~~~~~~~~~")
     # Define savedir
-    savedir=f"{general_file_dir}/{c}/{condition_col}/{condition}"
+    savedir=f"{general_file_dir}/{level}/{condition_col}/{condition}"
     if os.path.exists(savedir) == False:
         os.makedirs(savedir, exist_ok=True)
     print("Filtering anndata")
-    temp = adata[adata.obs[aggregate_on] == c]
+    temp = adata[adata.obs[aggregate_on] == level]
+    
+    
     # Filter for intersection with genotypes
     temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
+    
+    
     # Identify genes expressed in > n% of cells
     print("Filtering lowly expressed genes")
     counts=temp.X
@@ -216,6 +214,8 @@ for c in cats:
     # Subset counts for these genes
     counts = counts[:,keep_genes]
     print(f"Final shape is:{counts.shape}")
+    
+    
     # Preprocess the covariates (scale continuous, dummy for categorical)
     print("Extracting and sorting covariates")
     to_add = temp.obs[covs_use]
@@ -232,10 +232,14 @@ for c in cats:
     index_use = counts.index
     counts = counts.merge(geno_pcs, on=genotype_id, how='left')
     counts.set_index(index_use, inplace=True)
+    
+    
     # If a covariate has ':' in it's name, this will throw errors in SAIGE, replace this with '_'
     counts.columns=counts.columns.str.replace(':', '_')
+    
+    
     # Compute and add the expression PCs
-    if expression_pca:
+    if expression_pca == "true":
         print("Computing expression PCs")
         sc.pp.normalize_total(temp, target_sum=1e4)
         sc.pp.log1p(temp)
@@ -255,12 +259,21 @@ for c in cats:
         loadings.index = temp.obs.index
         loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
         counts = counts.merge(loadings, left_index=True, right_index=True)
+        
+        
     # Save this as a dataframe in a directory specific to this resolution - make this if not already
     print("Saving")
     # Save list of gene names to test
     with open(f"{savedir}/test_genes.txt", 'w') as file:
         for item in keep_genes_names:
             file.write(f"{item}\n")
+            
+            
     # Save counts + covariates
     # NOTE: This currently isn't implemented to save sparse or compressed files (as SAIGE requires dense input) - 80k cells and 10k genes = ~2.5GB file
     counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
+    
+
+if __name__ == '__main__':
+    main()
+    

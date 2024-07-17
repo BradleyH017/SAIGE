@@ -15,7 +15,7 @@ import os
 def parse_options():  
     parser = argparse.ArgumentParser(
             description="""
-                Prepping files for the SAIGEQTL analysis
+                Script to perform scANVI integration of 
                 """
         )
 

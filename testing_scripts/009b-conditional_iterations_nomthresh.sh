@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Perform the SAIGEQTL analysis of single cell expression from TI - conditioning on the top variant (present in the ACAT test results) - run per test gene
-# bsub -o logs/saige_conditional-%J-%I-output.log -e logs/saige_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_conditional[1-13919]%500" < testing_scripts/009-conditional_iterations.sh 
+# bsub -o logs/saige_conditional-%J-%I-output.log -e logs/saige_conditional-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_conditional[1-10]%1000" < testing_scripts/009b-conditional_iterations_nomthresh.sh 
 
 # Load modules and docker
 module load ISG/singularity/3.9.0
@@ -69,11 +69,12 @@ fi
 # If not, perform conditional
 topvariant=$(awk -F'\t' 'NR==2 {print $3}' ${step2prefix}_minimum_q.txt)
 
-# Extract the minimum p-value for which there is an FDR < 0.05 in the first round
-pval_thresh=$(awk -F'\t' 'NR==2 {print $13}' ${step2prefix}_minimum_q.txt)
-
 # Re-derive the gene_chr
 gene_chr=$(awk -F'\t' 'NR==2 {print $1}' ${step2prefix}_minimum_q.txt)
+
+# Extract the maximum p-value for which there is an FDR < 0.05 in the first round
+Rscript ${repo_dir}/testing_scripts/bin/find_nom_p_val_thresh.r -c ${catdir}/chr${gene_chr}_nPC_${n_expr_pcs}_minimum_q_all_genes.txt -f ${step2prefix}.txt -t $threshold
+pval_thresh=$(awk -F'\t' 'NR==1 {print $1}' ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_pvalue_thresh.txt)
 
 # Perform conditional cis-eQTL analysis on this variant, for this gene
 # Output is called 'round2' as the first test was round 1
@@ -102,12 +103,12 @@ Rscript ${repo_dir}/testing_scripts/bin/qvalue_correction.R -f ${cond_dir}/${gen
 for c in {3..5}; do
     echo "~~~~~~~~~~~~~~~~PERFORMING ROUND ${c} OF EQTL ANALYSIS~~~~~~~~~~~~~~~~~"
     previous=$((c - 1))
-    # Find the minimum q of the round previously and whether this passes the threshold [new conditional column is always column 23]
-    top_q_row=$(tail -n +2 "${catdir}/conditional/${gene}__npc${n_expr_pcs}_cis_round${previous}.txt" | sort -t$'\t' -k23,23n | head -n 1)
-    top_q=$(echo "$top_q_row" | awk -F' ' '{print $23}')
+    # Find the ******minimum p****** of the round previously and whether this passes the ****nominal p******threshold [conditional p is always column 20]
+    top_q_row=$(tail -n +2 "${catdir}/conditional/${gene}__npc${n_expr_pcs}_cis_round${previous}.txt" | sort -t$'\t' -k13,13n | head -n 1)
+    top_q=$(echo "$top_q_row" | awk -F' ' '{print $13}')
     # Stop if no further independent effects 
-    if (( $(echo "$top_q > $threshold" | bc -l) )); then
-        echo "Not performing conditional analysis round ${c}: q-value for last pass > $threshold"
+    if (( $(echo "$top_q > $pval_thresh" | bc -l) )); then
+        echo "Not performing conditional analysis round ${c}: p-value for last pass > nominal p thresh ($pval_thresh)"
         exit 0  # 0 means success in Bash
     fi 
     # But if not, combine the new top variant with the previous set (3rd column)

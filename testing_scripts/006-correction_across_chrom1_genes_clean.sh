@@ -6,7 +6,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="T_cell_CD4_CD40LGplus_2"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -16,8 +16,8 @@ sample_id="sanger_sample_id"
 nperc=10
 condition_col=""
 condition=""
-covariates="age_imputed,sex"
-covariates_cell=""
+covariates="age_imputed,sex,total_counts"
+covariates_cell="total_counts"
 expression_pca="true"
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
@@ -76,7 +76,13 @@ for n_expr_pcs_test in 0 5 10 15 20 $knee; do
         echo $n_expr_pcs_test
         if [ "$n_expr_pcs_test" -ne "$n_expr_pcs" ]; then
                 # Remove files that don't match the current value of n_optim_pcs
-                rm ${catdir}/*npc${n_expr_pcs_test}*
+                rm ${catdir}/*npc${n_expr_pcs_test}_cis_ACAT*
+                rm ${catdir}/*npc${n_expr_pcs_test}_cis_minimum_q*
+                rm ${catdir}/*npc${n_expr_pcs_test}_cis_region_file.txt
+                rm ${catdir}/*npc${n_expr_pcs_test}_cis_region_file*
+                rm ${catdir}/*npc${n_expr_pcs_test}.rda  
+                rm ${catdir}/*npc${n_expr_pcs_test}.varianceRatio.txt
+                rm ${catdir}/*npc${n_expr_pcs_test}_cis.txt*
                 rm ${catdir}/*nPC_${n_expr_pcs_test}*
         fi
 done

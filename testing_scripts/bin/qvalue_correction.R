@@ -51,10 +51,11 @@ min_file = paste0(min_file, "_minimum_q.txt")
 to_save = res[res[,new_column] == min(res[,new_column]),]
 # If little significance, may get lots of results with the minimum qvalue
 if(nrow(to_save > 1)){
-    to_save=res[res[,new_column] == min(res[,new_column]),]
-    # If have variants in complete LD - take the one with the smallest original value
+    # If have lots of variants with same corrected value, take the one with the smallest original pvalue
+    to_save=res[res[,column] == min(res[,column]),]
+    # If have variants in complete LD - take the top
     if(nrow(to_save) > 1){
-        to_save = to_save[to_save[,column] == min(to_save[,column]),]
+        to_save = to_save[1,]
     }
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #### Bradley 2023
 #### Performing genome-wide analysis of trans-effects from cis-variants using SAIGE
-# bsub -o logs/saige_trans-%J-%I-output.log -e logs/saige_trans-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_trans[1-3901]%1000" < testing_scripts/012-Trans_of_cis.sh 
+# bsub -o logs/saige_trans-%J-%I-output.log -e logs/saige_trans-%J-%I-error.log -q normal -G team152 -n 1 -M 9000 -a "memlimit=True" -R "select[mem>9000] rusage[mem=9000] span[hosts=1]" -J "saige_trans[1-13919]%1000" < testing_scripts/012-Trans_of_cis.sh 
 
 
 # Load modules and docker
@@ -9,7 +9,7 @@ module load ISG/singularity/3.9.0
 saige_eqtl=/software/team152/bh18/singularity/singularity/saige.simg
 
 # Define options for this test (will ultimately be inherited) and general options
-level="Pericytes"
+level="T_cell_CD8_1"
 phenotype__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/freeze_003/ti-cd_healthy-fr003_004/anderson_ti_freeze003_004-eqtl_processed.h5ad"
 aggregate_on="label__machine"
 general_file_dir="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/bradley_analysis/results/TI/SAIGE_runfiles"
@@ -19,8 +19,8 @@ sample_id="sanger_sample_id"
 nperc=1
 condition_col=""
 condition=""
-covariates="age_imputed,sex"
-covariates_cell=""
+covariates="age_imputed,sex,total_counts"
+covariates_cell="total_counts"
 expression_pca="true"
 annotation__file="/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/eqtl/assets/gene_counts_Ensembl_105_phenotype_metadata.annotation_file.txt"
 cis_only=true
@@ -101,6 +101,6 @@ singularity exec -B /lustre -B /software $saige_eqtl Rscript /usr/local/bin/step
     --markers_per_chunk=10000
 
 # Add gene name to the output
-awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > tmp_${gene} && mv tmp_${gene} ${step2prefix}.txt 
+awk -v new_val=${gene} 'BEGIN {OFS="\t"} {print $0, new_val}' "${step2prefix}.txt" > ${catdir}/tmp_${level}_${gene} && mv ${catdir}/tmp_${level}_${gene} ${step2prefix}.txt 
 
 echo "Finished analysis, removed intermediate files"
